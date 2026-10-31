@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ZM Planner</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#14532d">
+<style>
+:root{--bg:#eef2ee;--card:#fff;--tx:#18201a;--mut:#5d6b60;--pri:#14532d;--on:#fff;--acc:#b45309;--bd:#d3dcd4;--red:#b42318}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1511;--card:#18201a;--tx:#e8efe9;--mut:#9aa89d;--pri:#4ade80;--on:#06210f;--acc:#f0a45a;--bd:#2a362c;--red:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 Georgia,'Times New Roman',serif;padding-bottom:84px}
+header{background:var(--pri);color:var(--on);padding:14px 16px;font:700 20px system-ui,sans-serif;border-bottom:4px solid var(--acc)}
+header small{display:block;font:400 13px system-ui,sans-serif;opacity:.85}
+main{max-width:640px;margin:0 auto;padding:14px}
+button,input,textarea{font:inherit}
+button{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 14px;border-radius:8px;font-family:system-ui,sans-serif}
+button.pri{background:var(--pri);color:var(--on);border-color:var(--pri);font-weight:600}
+button.del{color:var(--red)}
+button.link{border:0;background:none;color:var(--pri);padding:6px 0;font-weight:600}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.bar{display:flex;gap:8px;margin-bottom:12px}
+.bar input{flex:1}
+input,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx)}
+label{display:block;margin:12px 0;font:600 14px system-ui,sans-serif;color:var(--mut)}
+label input,label textarea{margin-top:4px;font:16px Georgia,serif;color:var(--tx)}
+.card{background:var(--card);border:1px solid var(--bd);border-left:5px solid var(--acc);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.card b{display:block}.card small{color:var(--mut);font-family:system-ui,sans-serif}
+.empty{color:var(--mut);text-align:center;padding:30px 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;border-radius:0;background:none;padding:14px 4px;color:var(--mut);font-weight:600}
+nav button.on{color:var(--pri);box-shadow:inset 0 3px 0 var(--acc)}
+@media print{header,nav,.row,.bar,.link{display:none}body{background:#fff;color:#000}textarea,input{border:0;resize:none}}
+</style></head><body>
+<header>ZM Planner<small>Offline lesson planning for Zambian teachers</small></header>
+<main id="app"></main>
+<nav>
+<button data-t="plans">Lesson plans</button>
+<button data-t="scheme">Schemes of work</button>
+<button data-t="notes">Notes</button>
+</nav>
+<script>
+const S={
+plans:{t:'Lesson plans',n:'lesson plan',k:'topic',m:'subject',f:[['school','School'],['teacher','Teacher'],['cls','Class (for example, Grade 6)'],['subject','Subject'],['topic','Topic'],['date','Date','date'],['dur','Duration in minutes','number'],['outcome','Specific outcomes','area'],['mat','Teaching and learning materials','area'],['intro','Introduction','area'],['dev','Development','area'],['concl','Conclusion','area'],['assess','Assessment','area'],['refl','Reflection','area']]},
+scheme:{t:'Schemes of work',n:'scheme of work',k:'topic',m:'week',f:[['school','School'],['teacher','Teacher'],['cls','Class'],['subject','Subject'],['term','Term'],['week','Week (for example, Week 1)'],['topic','Topic'],['outcome','Specific outcomes','area'],['act','Activities','area'],['mat','Materials','area'],['assess','Assessment','area'],['rem','Remarks','area']]},
+notes:{t:'Notes',n:'note',k:'title',m:'',f:[['title','Title'],['body','Note','area']]}
+};
+let D={plans:[],scheme:[],notes:[],pre:{}},tab='plans',cur=null,q='';
+try{D=Object.assign(D,JSON.parse(localStorage.getItem('zmp')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('zmp',JSON.stringify(D))}catch(e){alert('Could not save on this phone. Free some storage and try again.')}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(){
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+ cur===null?list():form();
+}
+function items(){
+ const s=S[tab],a=D[tab].filter(r=>JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
+ $('#items').innerHTML=a.length?a.map(r=>'<div class="card" data-id="'+r.id+'"><b>'+esc(r[s.k]||'Untitled')+'</b><small>'+esc((s.m&&r[s.m])||r.cls||'')+'</small></div>').join(''):'<p class="empty">Nothing saved yet. Tap New to add a '+s.n+'.</p>';
+ document.querySelectorAll('.card').forEach(c=>c.onclick=()=>{cur=c.dataset.id;render()});
+}
+function list(){
+ $('#app').innerHTML='<div class="bar"><input id="q" placeholder="Search '+S[tab].t.toLowerCase()+'" value="'+esc(q)+'"><button class="pri" id="new">New</button></div><div id="items"></div>';
+ $('#q').oninput=e=>{q=e.target.value;items()};
+ $('#new').onclick=()=>{cur='new';render()};
+ items();
+}
+function form(){
+ const s=S[tab],isNew=cur==='new',p=D.pre||{};
+ const r=isNew?{school:p.school,teacher:p.teacher,cls:p.cls}:(D[tab].find(x=>x.id===cur)||{});
+ $('#app').innerHTML='<button class="link" id="back">Back to '+s.t.toLowerCase()+'</button><h2>'+(isNew?'New ':'Edit ')+s.n+'</h2>'+
+ s.f.map(([k,l,t])=>t==='area'?'<label>'+l+'<textarea data-k="'+k+'" rows="4">'+esc(r[k])+'</textarea></label>':'<label>'+l+'<input data-k="'+k+'" type="'+(t||'text')+'" value="'+esc(r[k])+'"></label>').join('')+
+ '<div class="row"><button class="pri" id="sv">Save</button><button id="sh">Share</button><button id="pr">Print</button>'+(isNew?'':'<button class="del" id="dl">Delete</button>')+'</div>';
+ const get=()=>{const o={};document.querySelectorAll('[data-k]').forEach(e=>o[e.dataset.k]=e.value.trim());return o};
+ $('#back').onclick=()=>{cur=null;render()};
+ $('#sv').onclick=()=>{
+  const o=get();
+  if(isNew){o.id=String(Date.now());D[tab].unshift(o)}else{const i=D[tab].findIndex(x=>x.id===cur);o.id=cur;D[tab][i]=o}
+  if(o.school||o.teacher||o.cls)D.pre={school:o.school,teacher:o.teacher,cls:o.cls};
+  save();cur=null;render();
+ };
+ $('#sh').onclick=async()=>{
+  const o=get(),txt=s.f.map(([k,l])=>o[k]?l+':\n'+o[k]:'').filter(Boolean).join('\n\n');
+  try{if(navigator.share){await navigator.share({title:o[s.k]||s.n,text:txt})}else{await navigator.clipboard.writeText(txt);alert('Copied. Paste it into WhatsApp or a document.')}}catch(e){}
+ };
+ $('#pr').onclick=()=>window.print();
+ if(!isNew)$('#dl').onclick=()=>{if(confirm('Delete this '+s.n+'? This cannot be undone.')){D[tab]=D[tab].filter(x=>x.id!==cur);save();cur=null;render()}};
+ scrollTo(0,0);
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;cur=null;q='';render()});
+render();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
