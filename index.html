@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -74,6 +75,7 @@ notes:{t:'Notes',n:'note',k:'title',m:'',f:[['title','Title'],['body','Note','ar
 };
 let D={plans:[],scheme:[],notes:[],lib:[],ct:[],classes:[],marks:[],att:{},cov:{},pre:{}},tab='plans',cur=null,q='';
 try{D=Object.assign(D,JSON.parse(localStorage.getItem('zmp')||'{}'))}catch(e){}
+if(!D.pre) D.pre = {};
 const save=()=>{try{localStorage.setItem('zmp',JSON.stringify(D))}catch(e){toast('Could not save on this phone. Free some storage and try again.')}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -268,7 +270,8 @@ const TOP={
  'Form 6 (Grade 12)':SEN
 };
 
-let dv={g:D.pre?.g||'Form 1 (Grade 7)',s:D.pre?.s||'',t:''};
+let dv={g:(D.pre&&D.pre.g)||'Form 1 (Grade 7)',s:(D.pre&&D.pre.s)||'',t:''};
+if(!TOP[dv.g]){dv.g = Object.keys(TOP)[0]; dv.s = '';}
 
 const topics=(g,s)=>((TOP[g]||{})[s]||'').split('|').filter(Boolean).concat(D.ct.filter(x=>x.g===g&&x.s===s).map(x=>x.t));
 const opts=(a,sel,ph)=>(ph?'<option value="">'+ph+'</option>':'')+a.map(x=>'<option'+(x===sel?' selected':'')+'>'+esc(x)+'</option>').join('');
@@ -277,8 +280,8 @@ function draft(o){
  const t=o.topic||'the topic';
  const sub=(o.subject||'').toLowerCase();
  const tot=parseInt(o.dur)||40;
- const school=o.school||D.pre?.school||'[School Name]';
- const teacher=o.teacher||D.pre?.teacher||'[Teacher Name]';
+ const school=o.school||(D.pre&&D.pre.school)||'[School Name]';
+ const teacher=o.teacher||(D.pre&&D.pre.teacher)||'[Teacher Name]';
  
  const isMath=/math/.test(sub);
  const isScience=/science|biology|chemistry|physics/.test(sub);
@@ -290,87 +293,88 @@ function draft(o){
  let goal, comps, c1, c2, c3, method, af, as, mat, env, prior, inter, cont;
  
  if(isMath){
-     goal = `To develop learners' ability to accurately solve problems related to ${t} and apply the concepts in real-life situations.`;
+     goal = 'To develop learners\' ability to accurately solve problems related to '+t+' and apply the concepts in real-life situations.';
      comps = "Mathematical reasoning, problem-solving, critical thinking, analytical skills, and precision.";
-     c1 = `Knowledge based: Identify the key terms, formulas, and rules associated with ${t}.`;
-     c2 = `Cognitive based: Explain the steps involved in solving problems related to ${t} and justify the solutions.`;
-     c3 = `Skill based: Accurately calculate and solve real-world problems involving ${t}.`;
+     c1 = 'Knowledge based: Identify the key terms, formulas, and rules associated with '+t+'.';
+     c2 = 'Cognitive based: Explain the steps involved in solving problems related to '+t+' and justify the solutions.';
+     c3 = 'Skill based: Accurately calculate and solve real-world problems involving '+t+'.';
      method = "Guided discovery, step-by-step problem-solving on the board, think-pair-share, and differentiated practice.";
      af = "Observation of learner working out, checking exercise books during practice, and oral questioning.";
      as = "A short written exercise with 3-5 graded problems on the topic.";
-     mat = `Chalkboard, rulers, textbook, and worksheets with practice problems on ${t}.`;
-     prior = `Learners have prior knowledge of basic arithmetic operations and foundational concepts related to ${t}.`;
+     mat = 'Chalkboard, rulers, textbook, and worksheets with practice problems on '+t+'.';
+     prior = 'Learners have prior knowledge of basic arithmetic operations and foundational concepts related to '+t+'.';
  } else if(isScience){
-     goal = `To enable learners to understand the scientific principles behind ${t} through observation and investigation.`;
+     goal = 'To enable learners to understand the scientific principles behind '+t+' through observation and investigation.';
      comps = "Scientific inquiry, observation, data recording, teamwork, and environmental awareness.";
-     c1 = `Knowledge based: State the basic facts, definitions, and processes involved in ${t}.`;
-     c2 = `Cognitive based: Explain the relationship between concepts in ${t} and predict outcomes of experiments.`;
-     c3 = `Skill based: Conduct simple experiments or observations related to ${t} and record findings accurately.`;
+     c1 = 'Knowledge based: State the basic facts, definitions, and processes involved in '+t+'.';
+     c2 = 'Cognitive based: Explain the relationship between concepts in '+t+' and predict outcomes of experiments.';
+     c3 = 'Skill based: Conduct simple experiments or observations related to '+t+' and record findings accurately.';
      method = "Inquiry-based learning, laboratory/field observation, group experimentation, and guided discussion.";
      af = "Observing group participation, checking how learners record data, and asking probing questions during experiments.";
      as = "A short quiz or a lab report on the findings of the activity.";
-     mat = `Chalkboard, charts, laboratory apparatus (if available), and locally available materials for experiments.`;
-     prior = `Learners have encountered everyday phenomena related to ${t} in their environment.`;
+     mat = 'Chalkboard, charts, laboratory apparatus (if available), and locally available materials for experiments.';
+     prior = 'Learners have encountered everyday phenomena related to '+t+' in their environment.';
  } else if(isLanguage){
-     goal = `To enhance learners' ability to communicate effectively, comprehend, and construct meaningful texts about ${t}.`;
+     goal = 'To enhance learners\' ability to communicate effectively, comprehend, and construct meaningful texts about '+t+'.';
      comps = "Effective communication, reading comprehension, vocabulary development, and creative writing.";
-     c1 = `Knowledge based: Identify the vocabulary, grammar structures, and themes related to ${t}.`;
-     c2 = `Cognitive based: Analyze texts and construct sentences or paragraphs that correctly apply concepts of ${t}.`;
-     c3 = `Skill based: Demonstrate fluency in speaking and coherence in writing about ${t}.`;
+     c1 = 'Knowledge based: Identify the vocabulary, grammar structures, and themes related to '+t+'.';
+     c2 = 'Cognitive based: Analyze texts and construct sentences or paragraphs that correctly apply concepts of '+t+'.';
+     c3 = 'Skill based: Demonstrate fluency in speaking and coherence in writing about '+t+'.';
      method = "Communicative language teaching, role-playing, reading aloud, group discussions, and process writing.";
      af = "Listening to learners during role-play/discussion, peer review of written work, and oral quizzes.";
      as = "A written composition or a reading comprehension passage with questions.";
-     mat = `Chalkboard, textbooks, supplementary readers, dictionaries, and flashcards.`;
-     prior = `Learners have basic vocabulary and sentence construction skills related to ${t}.`;
+     mat = 'Chalkboard, textbooks, supplementary readers, dictionaries, and flashcards.';
+     prior = 'Learners have basic vocabulary and sentence construction skills related to '+t+'.';
  } else if(isSocial){
-     goal = `To help learners understand the social, historical, or geographical significance of ${t} and their role as citizens.`;
+     goal = 'To help learners understand the social, historical, or geographical significance of '+t+' and their role as citizens.';
      comps = "Civic responsibility, critical thinking, map reading, historical empathy, and cultural appreciation.";
-     c1 = `Knowledge based: Name key events, places, or civic concepts related to ${t}.`;
-     c2 = `Cognitive based: Explain the causes, effects, or significance of ${t} in the Zambian and global context.`;
-     c3 = `Skill based: Interpret maps/charts or engage in debates regarding ${t}.`;
+     c1 = 'Knowledge based: Name key events, places, or civic concepts related to '+t+'.';
+     c2 = 'Cognitive based: Explain the causes, effects, or significance of '+t+' in the Zambian and global context.';
+     c3 = 'Skill based: Interpret maps/charts or engage in debates regarding '+t+'.';
      method = "Discussion, map work, timeline creation, role-play of historical events, and group presentations.";
      af = "Observation during group work, questioning, and checking notes.";
      as = "An open-ended essay question or a map interpretation exercise.";
-     mat = `Chalkboard, maps, historical pictures, textbook, and relevant community resources.`;
-     prior = `Learners have an awareness of their community and basic social structures.`;
+     mat = 'Chalkboard, maps, historical pictures, textbook, and relevant community resources.';
+     prior = 'Learners have an awareness of their community and basic social structures.';
  } else {
-     goal = `To help learners understand and apply the key concepts of ${t} effectively.`;
+     goal = 'To help learners understand and apply the key concepts of '+t+' effectively.';
      comps = "Communication, collaboration, observation, problem solving, and critical thinking.";
-     c1 = `Knowledge based: Identifying and naming the key ideas in ${t}.`;
-     c2 = `Cognitive based: Explaining, comparing, or classifying ideas in ${t}.`;
-     c3 = `Skill based: Applying ${t} to solve a real problem.`;
+     c1 = 'Knowledge based: Identifying and naming the key ideas in '+t+'.';
+     c2 = 'Cognitive based: Explaining, comparing, or classifying ideas in '+t+'.';
+     c3 = 'Skill based: Applying '+t+' to solve a real problem.';
      method = "Group work, guided discovery, discussion, and demonstration.";
      af = "Observation, monitoring participation, and how well learners work in groups.";
      as = "Open-ended questions and a short written task on " + t + ".";
-     mat = `Chalkboard and chalk, learners' textbook, charts, or real objects about ${t}.`;
-     prior = `Learners have met basic ideas related to ${t} in earlier lessons.`;
+     mat = 'Chalkboard and chalk, learners\' textbook, charts, or real objects about '+t+'.';
+     prior = 'Learners have met basic ideas related to '+t+' in earlier lessons.';
  }
  
  env = "Natural: school surroundings. Artificial: classroom. Technological: videos or charts if available.";
- inter = `Links to other subjects, such as applying ${t} in daily life and other disciplines.`;
- cont = `Learners use ${t} at home or in the community and report back in the next lesson.`;
+ inter = 'Links to other subjects, such as applying '+t+' in daily life and other disciplines.';
+ cont = 'Learners use '+t+' at home or in the community and report back in the next lesson.';
 
  const act = isMath ? 'solve practice problems step by step' : isScience ? 'observe, test, and record findings' : isLanguage ? 'read, speak, and write using examples' : 'discuss, investigate, and record answers';
  
  const d = {
-  school: school, teacher: teacher, goal: goal, competences: comps, target: `Learners use what they learn about ${t} correctly in everyday life.`,
+  school: school, teacher: teacher, goal: goal, competences: comps, target: 'Learners use what they learn about '+t+' correctly in everyday life.',
   c1: c1, c2: c2, c3: c3, method: method, af: af, as: as, mat: mat, env: env, prior: prior, inter: inter, cont: cont
  };
  
  const T={
-  eng:[`Greet learners. Ask a question that links ${t} to daily life and review what they already know.`, `Answer questions and share ideas and experiences.`, `Communication, critical thinking`, `Monitor participation and engagement.`],
-  exp:[`- Introduce the activity.\n- Divide learners into small groups.\n- Give clear instructions and materials.\n- Move around, guide, and ask probing questions.`, `- In groups, ${act} on ${t}.\n- Record findings.\n- Prepare to present.`, `Collaboration, communication, observation, problem-solving`, `Check that learners work correctly and safely; ask open-ended questions.`],
-  xpl:[`- Ask groups to present their findings.\n- Explain the key ideas of ${t} and link them to what learners found.\n- Correct misconceptions.`, `Present findings, give feedback, listen, and take notes.`, `Presentation, critical thinking, note-taking`, `Monitor presentations; ask open-ended questions; check that learners take notes.`],
-  syn:[`Give concise notes on ${t}: key terms and key points. Show how the ideas apply in other situations.`, `Write notes, make corrections, and give examples from daily life.`, `Critical thinking, creativity, problem-solving`, `Check notes; check that learners apply the ideas correctly.`],
-  evl:[`1. What was easy or difficult about ${t}?\n2. How did your group reach agreement?\n- Give feedback on responses.`, `Reflect, answer the questions, and give feedback.`, `Communication, critical thinking, reflection`, `Monitor the discussion; ask open-ended questions.`]
+  eng:['Greet learners. Ask a question that links '+t+' to daily life and review what they already know.', 'Answer questions and share ideas and experiences.', 'Communication, critical thinking', 'Monitor participation and engagement.'],
+  exp:['- Introduce the activity.\n- Divide learners into small groups.\n- Give clear instructions and materials.\n- Move around, guide, and ask probing questions.', '- In groups, '+act+' on '+t+'.\n- Record findings.\n- Prepare to present.', 'Collaboration, communication, observation, problem-solving', 'Check that learners work correctly and safely; ask open-ended questions.'],
+  xpl:['- Ask groups to present their findings.\n- Explain the key ideas of '+t+' and link them to what learners found.\n- Correct misconceptions.', 'Present findings, give feedback, listen, and take notes.', 'Presentation, critical thinking, note-taking', 'Monitor presentations; ask open-ended questions; check that learners take notes.'],
+  syn:['Give concise notes on '+t+': key terms and key points. Show how the ideas apply in other situations.', 'Write notes, make corrections, and give examples from daily life.', 'Critical thinking, creativity, problem-solving', 'Check notes; check that learners apply the ideas correctly.'],
+  evl:['1. What was easy or difficult about '+t+'?\n2. How did your group reach agreement?\n- Give feedback on responses.', 'Reflect, answer the questions, and give feedback.', 'Communication, critical thinking, reflection', 'Monitor the discussion; ask open-ended questions.']
  };
  ['eng','exp','xpl','syn','evl'].forEach((k,i)=>{d[k+'D']=String(sh[i]);d[k+'T']=T[k][0];d[k+'L']=T[k][1];d[k+'C']=T[k][2];d[k+'A']=T[k][3]});
  return d;
 }
 
 function daniel(){
- const subs=Object.keys(TOP[dv.g]),tp=topics(dv.g,dv.s);
- if(!subs.includes(dv.s)){dv.s=subs[0];return daniel()}
+ if(!TOP[dv.g]){dv.g = Object.keys(TOP)[0]; dv.s='';}
+ const subs=Object.keys(TOP[dv.g]||{}),tp=topics(dv.g,dv.s);
+ if(!subs.includes(dv.s)){dv.s=subs[0]||'';return daniel()}
  
  const profile=D.pre||{};
  
@@ -403,7 +407,7 @@ function daniel(){
  $('#bd').onclick=()=>{
   const t=topic();if(!t){toast('Choose or type a topic first.');return}
   const draftData=draft({topic:t,subject:dv.s,cls:dv.g});
-  seed=Object.assign({cls:dv.g,subject:dv.s,topic:t,school:D.pre?.school,teacher:D.pre?.teacher},draftData);
+  seed=Object.assign({cls:dv.g,subject:dv.s,topic:t,school:D.pre&&D.pre.school,teacher:D.pre&&D.pre.teacher},draftData);
   tab='plans';cur='new';render();
  };
  $('#bs').onclick=()=>{const t=$('#dx').value.trim();if(!t){toast('Type your topic in the box first.');return}D.ct.push({g:dv.g,s:dv.s,t});save();dv.t=t;daniel()};
