@@ -51,7 +51,7 @@ textarea.lined{min-height:150px;line-height:26px;padding:2px 10px;background-ima
 @page{size:A4 landscape;margin:1.5cm}
 @media print{header,nav,main,.banner,#toast,#dlg{display:none!important}#pa{display:block}body{background:#fff;color:#000;padding:0}#pa table{border-collapse:collapse;width:100%;margin-bottom:12px;font:12px/1.35 Arial,sans-serif}#pa td,#pa th{border:1px solid #444;padding:5px;vertical-align:top;text-align:left;color:#000}#pa th{background:#d9ead3}}
 </style></head><body>
-<header>ZM Planner <small>v2.3 - Offline lesson planning for Zambian teachers</small><small id="dsg"></small><small id="pn"></small></header>
+<header>ZM Planner <small>v3.0 - Offline lesson planning for Zambian teachers</small><small id="dsg"></small><small id="pn"></small></header>
 <main id="app"></main>
 <nav>
 <button data-t="plans">Plans</button>
@@ -63,7 +63,7 @@ textarea.lined{min-height:150px;line-height:26px;padding:2px 10px;background-ima
 </nav>
 <div id="pa"></div>
 <script>
-// ERROR CATCHER
+// ERROR CATCHER TO PREVENT BLANK SCREENS
 window.onerror = function(msg, url, line, col, error) {
     var errDiv = document.createElement('div');
     errDiv.style.cssText = 'position:fixed;top:100px;left:10px;right:10px;background:red;color:white;padding:20px;z-index:9999;font-family:sans-serif;font-size:14px;border-radius:8px;';
@@ -87,9 +87,10 @@ scheme:{t:'Schemes of work',n:'scheme of work',k:'topic',m:'week',f:[['school','
 notes:{t:'Notes',n:'note',k:'title',m:'',f:[['title','Title'],['body','Note','area']]}
 };
 
+// USE A NEW STORAGE KEY TO BYPASS OLD BROKEN DATA
 let D = { plans:[], scheme:[], notes:[], lib:[], ct:[], classes:[], marks:[], att:{}, cov:{}, pre:{} };
 try {
-    const saved = JSON.parse(localStorage.getItem('zmp')||'{}');
+    const saved = JSON.parse(localStorage.getItem('zmp_v3')||'{}');
     if(saved && typeof saved === 'object') {
         if(Array.isArray(saved.plans)) D.plans = saved.plans;
         if(Array.isArray(saved.scheme)) D.scheme = saved.scheme;
@@ -104,7 +105,7 @@ try {
     }
 } catch(e) { console.log('Storage error', e); }
 
-const save=()=>{try{localStorage.setItem('zmp',JSON.stringify(D))}catch(e){toast('Could not save on this phone. Free some storage and try again.')}};
+const save=()=>{try{localStorage.setItem('zmp_v3',JSON.stringify(D))}catch(e){toast('Could not save on this phone. Free some storage and try again.')}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -117,12 +118,13 @@ function render(){
    if(tab==='lib')return cur===null?lib():libForm();
    cur===null?list():form();
  } catch(e) {
-   document.getElementById('app').innerHTML = '<div style="background:red;color:white;padding:20px;">Render Error: ' + e.message + '</div>';
+   document.getElementById('app').innerHTML = '<div style="background:red;color:white;padding:20px;border-radius:8px;">Render Error: ' + e.message + '</div>';
  }
 }
 
 function items(){
- const s=S[tab],a=D[tab].filter(r=>JSON.stringify(r).toLowerCase().indexOf(q.toLowerCase())>-1);
+ const arr = D[tab] || [];
+ const s=S[tab], a=arr.filter(r=>JSON.stringify(r).toLowerCase().indexOf(q.toLowerCase())>-1);
  $('#items').innerHTML=a.length?a.map(r=>'<div class="card" data-id="'+r.id+'"><b>'+esc(r[s.k]||'Untitled')+'</b><small>'+esc((s.m&&r[s.m])||r.cls||'')+'</small></div>').join(''):'<p class="empty">Nothing saved yet. Tap New to add a '+s.n+'.</p>';
  document.querySelectorAll('.card').forEach(c=>c.onclick=()=>{cur=c.dataset.id;render()});
 }
@@ -277,4 +279,370 @@ function libForm(){
  }else{
   $('#app').innerHTML='<button class="link" id="back">Back to library</button><h2>'+esc(r.title)+'</h2><p>'+esc([r.grade,r.subject,r.year,r.type].filter(Boolean).join(', '))+'<br>'+mb(r.size||0)+'</p><div class="row"><button class="pri" id="open">Open</button><button id="dlf">Download copy</button><button class="del" id="dl">Delete</button></div>';
   const getF=async()=>{try{const f=await fdo('readonly',s=>s.get(r.id));if(!f)toast('This file is missing. Add it again.');return f}catch(e){toast('Could not read this file: '+(e&&e.message||e),8000);return null}};
-  const go=async(save)=>{const f=await getF();if(!f)return;const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;if(save){const n=r.name||r.title;a.download=/\.[A-Za-z0-9]{2,5}$/.test(n)?n:n+'.pdf'}else{a.target='_blank';a.rel='noopener'}a.style.position='fixed';a.style.top='-1000px';a.style.left='-1000px';document.body.append
+  const go=async(save)=>{const f=await getF();if(!f)return;const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;if(save){const n=r.name||r.title;a.download=/\.[A-Za-z0-9]{2,5}$/.test(n)?n:n+'.pdf'}else{a.target='_blank';a.rel='noopener'}a.style.position='fixed';a.style.top='-1000px';a.style.left='-1000px';document.body.appendChild(a);try{a.click()}catch(e){toast('Could not open this file. Open the app in Chrome.',8000)}setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},10000)};
+  $('#open').onclick=()=>go(false);$('#dlf').onclick=()=>go(true);
+  $('#dl').onclick=()=>ask('Delete this file from your phone?',async()=>{try{await fdo('readwrite',s=>s.delete(r.id))}catch(e){}D.lib=D.lib.filter(x=>x.id!==r.id);save();cur=null;render()});
+ }
+ $('#back').onclick=()=>{cur=null;render()};
+ scrollTo(0,0);
+}
+
+const PARTNER='Mukuba University',DESIGNER='Steve Chilwa';
+$('#dsg').textContent=DESIGNER?'Designed by '+DESIGNER:'';
+$('#pn').textContent=PARTNER?'In partnership with '+PARTNER:'';
+
+const SEN={
+ Mathematics:'Algebra|Functions and graphs|Geometry|Trigonometry|Statistics|Probability|Sets|Matrices|Vectors',
+ Biology:'Cell biology|Nutrition|Transport in living things|Respiration|Reproduction|Genetics and evolution|Ecology|Human health and disease',
+ Chemistry:'Matter and its particles|Atomic structure|Chemical bonding|Acids, bases and salts|Reactions and rates|Electrochemistry|Organic chemistry|Metals and non-metals',
+ Physics:'Mechanics and motion|Energy and work|Heat|Waves, light and sound|Electricity|Magnetism|Atomic and nuclear physics',
+ English:'Comprehension|Summary writing|Essay and letter writing|Grammar and usage|Literature',
+ Geography:'Map reading|Weather and climate|Landforms|Population|Agriculture|Mining|Industry',
+ History:'Pre-colonial Zambia|Colonial rule|Struggle for independence|Post-independence Zambia|World history',
+ 'Business Studies':'Business environment|Business ownership|Marketing|Finance|Management'
+};
+
+const JUNIOR={
+ Mathematics:'Sets|Numbers and Numeration|Algebraic Expressions|Geometry|Statistics|Ratio and Proportion|Time and Money',
+ English:'Listening and Speaking|Reading Comprehension|Composition Writing|Grammar: Tenses|Grammar: Parts of Speech|Vocabulary and Spelling',
+ 'Integrated Science':'Cells and Living Things|Plants|Human Body Systems|Health and Diseases|Matter and Materials|Energy|Forces and Machines|Electricity|Earth and Space|Environment and Conservation',
+ 'Social Studies':'Zambia History and Independence|Government and Citizenship|Zambia Economy|Map Work|Africa and the World|Family and Community',
+ 'Zambian Language':'Oral Literature|Reading and Comprehension|Writing|Grammar',
+ 'Creative and Technology Studies':'Design and Making|Drawing and Painting|Food and Nutrition|Agriculture|Music and Drama|Basic Technology'
+};
+
+const TOP={
+ 'Grade 6':JUNIOR,
+ 'Form 1 (Grade 7)':JUNIOR,
+ 'Form 2 (Grade 8)':JUNIOR,
+ 'Form 3 (Grade 9)':JUNIOR,
+ 'Form 4 (Grade 10)':SEN,
+ 'Form 5 (Grade 11)':SEN,
+ 'Form 6 (Grade 12)':SEN
+};
+
+let dv={g:(D.pre&&D.pre.g)||'Form 1 (Grade 7)',s:(D.pre&&D.pre.s)||'',t:''};
+if(!TOP[dv.g]){dv.g = Object.keys(TOP)[0]; dv.s = '';}
+
+const topics=(g,s)=>((TOP[g]||{})[s]||'').split('|').filter(Boolean).concat(D.ct.filter(x=>x.g===g&&x.s===s).map(x=>x.t));
+const opts=(a,sel,ph)=>(ph?'<option value="">'+ph+'</option>':'')+a.map(x=>'<option'+(x===sel?' selected':'')+'>'+esc(x)+'</option>').join('');
+
+function draft(o){
+ const t=o.topic||'the topic';
+ const sub=(o.subject||'').toLowerCase();
+ const tot=parseInt(o.dur)||40;
+ const school=o.school||(D.pre&&D.pre.school)||'[School Name]';
+ const teacher=o.teacher||(D.pre&&D.pre.teacher)||'[Teacher Name]';
+ 
+ const isMath=/math/.test(sub);
+ const isScience=/science|biology|chemistry|physics/.test(sub);
+ const isLanguage=/english|language/.test(sub);
+ const isSocial=/social|history|geography|civic/.test(sub);
+ 
+ const sh=[.15,.30,.25,.15,.15].map(p=>Math.max(1,Math.round(tot*p)));
+ 
+ let goal, comps, c1, c2, c3, method, af, as, mat, env, prior, inter, cont;
+ 
+ if(isMath){
+     goal = 'To develop learners\' ability to accurately solve problems related to '+t+' and apply the concepts in real-life situations.';
+     comps = "Mathematical reasoning, problem-solving, critical thinking, analytical skills, and precision.";
+     c1 = 'Knowledge based: Identify the key terms, formulas, and rules associated with '+t+'.';
+     c2 = 'Cognitive based: Explain the steps involved in solving problems related to '+t+' and justify the solutions.';
+     c3 = 'Skill based: Accurately calculate and solve real-world problems involving '+t+'.';
+     method = "Guided discovery, step-by-step problem-solving on the board, think-pair-share, and differentiated practice.";
+     af = "Observation of learner working out, checking exercise books during practice, and oral questioning.";
+     as = "A short written exercise with 3-5 graded problems on the topic.";
+     mat = 'Chalkboard, rulers, textbook, and worksheets with practice problems on '+t+'.';
+     prior = 'Learners have prior knowledge of basic arithmetic operations and foundational concepts related to '+t+'.';
+ } else if(isScience){
+     goal = 'To enable learners to understand the scientific principles behind '+t+' through observation and investigation.';
+     comps = "Scientific inquiry, observation, data recording, teamwork, and environmental awareness.";
+     c1 = 'Knowledge based: State the basic facts, definitions, and processes involved in '+t+'.';
+     c2 = 'Cognitive based: Explain the relationship between concepts in '+t+' and predict outcomes of experiments.';
+     c3 = 'Skill based: Conduct simple experiments or observations related to '+t+' and record findings accurately.';
+     method = "Inquiry-based learning, laboratory/field observation, group experimentation, and guided discussion.";
+     af = "Observing group participation, checking how learners record data, and asking probing questions during experiments.";
+     as = "A short quiz or a lab report on the findings of the activity.";
+     mat = 'Chalkboard, charts, laboratory apparatus (if available), and locally available materials for experiments.';
+     prior = 'Learners have encountered everyday phenomena related to '+t+' in their environment.';
+ } else if(isLanguage){
+     goal = 'To enhance learners\' ability to communicate effectively, comprehend, and construct meaningful texts about '+t+'.';
+     comps = "Effective communication, reading comprehension, vocabulary development, and creative writing.";
+     c1 = 'Knowledge based: Identify the vocabulary, grammar structures, and themes related to '+t+'.';
+     c2 = 'Cognitive based: Analyze texts and construct sentences or paragraphs that correctly apply concepts of '+t+'.';
+     c3 = 'Skill based: Demonstrate fluency in speaking and coherence in writing about '+t+'.';
+     method = "Communicative language teaching, role-playing, reading aloud, group discussions, and process writing.";
+     af = "Listening to learners during role-play/discussion, peer review of written work, and oral quizzes.";
+     as = "A written composition or a reading comprehension passage with questions.";
+     mat = 'Chalkboard, textbooks, supplementary readers, dictionaries, and flashcards.';
+     prior = 'Learners have basic vocabulary and sentence construction skills related to '+t+'.';
+ } else if(isSocial){
+     goal = 'To help learners understand the social, historical, or geographical significance of '+t+' and their role as citizens.';
+     comps = "Civic responsibility, critical thinking, map reading, historical empathy, and cultural appreciation.";
+     c1 = 'Knowledge based: Name key events, places, or civic concepts related to '+t+'.';
+     c2 = 'Cognitive based: Explain the causes, effects, or significance of '+t+' in the Zambian and global context.';
+     c3 = 'Skill based: Interpret maps/charts or engage in debates regarding '+t+'.';
+     method = "Discussion, map work, timeline creation, role-play of historical events, and group presentations.";
+     af = "Observation during group work, questioning, and checking notes.";
+     as = "An open-ended essay question or a map interpretation exercise.";
+     mat = 'Chalkboard, maps, historical pictures, textbook, and relevant community resources.';
+     prior = 'Learners have an awareness of their community and basic social structures.';
+ } else {
+     goal = 'To help learners understand and apply the key concepts of '+t+' effectively.';
+     comps = "Communication, collaboration, observation, problem solving, and critical thinking.";
+     c1 = 'Knowledge based: Identifying and naming the key ideas in '+t+'.';
+     c2 = 'Cognitive based: Explaining, comparing, or classifying ideas in '+t+'.';
+     c3 = 'Skill based: Applying '+t+' to solve a real problem.';
+     method = "Group work, guided discovery, discussion, and demonstration.";
+     af = "Observation, monitoring participation, and how well learners work in groups.";
+     as = "Open-ended questions and a short written task on " + t + ".";
+     mat = 'Chalkboard and chalk, learners\' textbook, charts, or real objects about '+t+'.';
+     prior = 'Learners have met basic ideas related to '+t+' in earlier lessons.';
+ }
+ 
+ env = "Natural: school surroundings. Artificial: classroom. Technological: videos or charts if available.";
+ inter = 'Links to other subjects, such as applying '+t+' in daily life and other disciplines.';
+ cont = 'Learners use '+t+' at home or in the community and report back in the next lesson.';
+
+ const act = isMath ? 'solve practice problems step by step' : isScience ? 'observe, test, and record findings' : isLanguage ? 'read, speak, and write using examples' : 'discuss, investigate, and record answers';
+ 
+ const d = {
+  school: school, teacher: teacher, goal: goal, competences: comps, target: 'Learners use what they learn about '+t+' correctly in everyday life.',
+  c1: c1, c2: c2, c3: c3, method: method, af: af, as: as, mat: mat, env: env, prior: prior, inter: inter, cont: cont
+ };
+ 
+ const T={
+  eng:['Greet learners. Ask a question that links '+t+' to daily life and review what they already know.', 'Answer questions and share ideas and experiences.', 'Communication, critical thinking', 'Monitor participation and engagement.'],
+  exp:['- Introduce the activity.\n- Divide learners into small groups.\n- Give clear instructions and materials.\n- Move around, guide, and ask probing questions.', '- In groups, '+act+' on '+t+'.\n- Record findings.\n- Prepare to present.', 'Collaboration, communication, observation, problem-solving', 'Check that learners work correctly and safely; ask open-ended questions.'],
+  xpl:['- Ask groups to present their findings.\n- Explain the key ideas of '+t+' and link them to what learners found.\n- Correct misconceptions.', 'Present findings, give feedback, listen, and take notes.', 'Presentation, critical thinking, note-taking', 'Monitor presentations; ask open-ended questions; check that learners take notes.'],
+  syn:['Give concise notes on '+t+': key terms and key points. Show how the ideas apply in other situations.', 'Write notes, make corrections, and give examples from daily life.', 'Critical thinking, creativity, problem-solving', 'Check notes; check that learners apply the ideas correctly.'],
+  evl:['1. What was easy or difficult about '+t+'?\n2. How did your group reach agreement?\n- Give feedback on responses.', 'Reflect, answer the questions, and give feedback.', 'Communication, critical thinking, reflection', 'Monitor the discussion; ask open-ended questions.']
+ };
+ ['eng','exp','xpl','syn','evl'].forEach((k,i)=>{d[k+'D']=String(sh[i]);d[k+'T']=T[k][0];d[k+'L']=T[k][1];d[k+'C']=T[k][2];d[k+'A']=T[k][3]});
+ return d;
+}
+
+function daniel(){
+ if(!TOP[dv.g]){dv.g = Object.keys(TOP)[0]; dv.s='';}
+ const subs=Object.keys(TOP[dv.g]||{}),tp=topics(dv.g,dv.s);
+ if(!subs.includes(dv.s)){dv.s=subs[0]||'';return daniel()}
+ 
+ const profile=D.pre||{};
+ 
+ $('#app').innerHTML='<h2>Daniel</h2><p>Daniel is your offline planning helper. He remembers your details and drafts lesson plans in the CBC format.</p>'+
+ 
+ '<div style="background:rgba(127,127,127,.1);padding:10px;border-radius:8px;margin-bottom:16px;">'+
+ '<h3 style="margin-top:0">Daniel\'s Memory (Your Profile)</h3>'+
+ '<p style="font-size:14px;margin:0 0 8px 0">Daniel will automatically add this to every lesson plan he drafts.</p>'+
+ '<label>School Name<input id="d_sch" value="'+esc(profile.school||'')+'" placeholder="e.g. Mukuba Secondary School"></label>'+
+ '<label>Teacher Name<input id="d_tea" value="'+esc(profile.teacher||'')+'" placeholder="e.g. Mr. Chanda"></label>'+
+ '<button class="pri" id="sv_profile" style="padding:6px 12px;font-size:14px;">Save to Memory</button>'+
+ '</div>'+
+
+ '<label>Grade / Form<select id="dg">'+opts(Object.keys(TOP),dv.g)+'</select></label><label>Subject<select id="dsb">'+opts(subs,dv.s)+'</select></label><label>Topic<select id="dt">'+opts(tp,dv.t,'Choose a topic')+'</select></label><label>Or type your own topic<input id="dx"></label>'+
+ '<div class="row"><button class="pri" id="bd">Draft a lesson plan</button><button id="bp">Find papers and books</button><button id="bs">Save my topic</button></div><div id="res"></div><p class="empty">These topic lists are starting points. Check them against your syllabus and use Save my topic to add your own.</p>';
+ 
+ $('#sv_profile').onclick=()=>{
+    D.pre = D.pre || {};
+    D.pre.school = $('#d_sch').value.trim();
+    D.pre.teacher = $('#d_tea').value.trim();
+    save();
+    toast('Profile saved! Daniel will remember this.');
+ };
+ 
+ const topic=()=>$('#dx').value.trim()||$('#dt').value;
+ $('#dg').onchange=e=>{dv.g=e.target.value;dv.s='';dv.t='';D.pre=D.pre||{};D.pre.g=dv.g;save();daniel()};
+ $('#dsb').onchange=e=>{dv.s=e.target.value;dv.t='';D.pre=D.pre||{};D.pre.s=dv.s;save();daniel()};
+ $('#dt').onchange=e=>{dv.t=e.target.value};
+ 
+ $('#bd').onclick=()=>{
+  const t=topic();if(!t){toast('Choose or type a topic first.');return}
+  const draftData=draft({topic:t,subject:dv.s,cls:dv.g});
+  seed=Object.assign({cls:dv.g,subject:dv.s,topic:t,school:D.pre&&D.pre.school,teacher:D.pre&&D.pre.teacher},draftData);
+  tab='plans';cur='new';render();
+ };
+ $('#bs').onclick=()=>{const t=$('#dx').value.trim();if(!t){toast('Type your topic in the box first.');return}D.ct.push({g:dv.g,s:dv.s,t});save();dv.t=t;daniel()};
+ $('#bp').onclick=()=>{
+  const t=topic().toLowerCase(),words=t.split(/\W+/).filter(w=>w.length>3),sb=dv.s.toLowerCase();
+  const hit=D.lib.filter(r=>{const h=(r.title+' '+r.subject).toLowerCase();return (sb&&h.includes(sb))||words.some(w=>h.includes(w))});
+  $('#res').innerHTML=hit.length?'<h3>Matching files in your Library</h3>'+hit.map(r=>'<div class="card" data-id="'+r.id+'"><b>'+esc(r.title)+'</b><small>'+esc([r.grade,r.subject,r.year,r.type].filter(Boolean).join(', '))+'</small></div>').join(''):'<p class="empty">No matching files yet. Add PDFs in the Library tab and Daniel will find them by title and subject. He cannot read inside the PDFs yet.</p>';
+  document.querySelectorAll('#res .card').forEach(c=>c.onclick=()=>{tab='lib';cur=c.dataset.id;render()});
+ };
+ scrollTo(0,0);
+}
+
+function planBody(o){
+ const e=x=>esc(x||'').replace(/\n/g,'<br>');
+ const r1=(l,v)=>'<tr><td colspan="5"><b>'+l+':</b> '+e(v)+'</td></tr>';
+ let h='<h3>Lesson plan'+(o.school?' - '+e(o.school):'')+'</h3>'+(o.teacher?'<p>Teacher: '+e(o.teacher)+'</p>':'');
+ h+='<table><tr><th colspan="5">Preliminary Information</th></tr>';
+ [['Subject','subject'],['Level','cls'],['Concept','concept'],['Sub-concepts','subc'],['Topic','topic'],['Subtopic','subtopic']].forEach(a=>h+=r1(a[0],o[a[1]]));
+ h+=r1('Lesson Duration',o.dur?o.dur+' minutes':'')+r1('Time',o.time)+r1('Date',o.date)+r1('Lesson Goal',o.goal)+r1('Competences',o.competences)+r1('Expected Target Competence',o.target);
+ h+=r1('Lesson Competencies',[o.c1,o.c2,o.c3].filter(Boolean).join('\n'))+r1('Lesson Methodology and strategies',o.method);
+ h+=r1('Assessment Strategies','Formative: '+(o.af||'')+'\nSummative: '+(o.as||''))+r1('Learning Materials',o.mat)+r1('Learning Environment',o.env)+r1('Prior Knowledge',o.prior)+r1('Interdisciplinary Connections',o.inter)+'</table>';
+ h+='<table><tr><th colspan="5">Lesson Progression</th></tr><tr><th></th><th>Teacher Activity (acts as facilitator)</th><th>Learner Activity (creates knowledge actively, not passively)</th><th>Targeted Competency</th><th>Assessment Criteria</th></tr>';
+ ST.forEach(([k,l])=>h+='<tr><td><b>'+e(l)+'</b><br>[Duration: '+e(o[k+'D'])+' min]</td><td>'+e(o[k+'T'])+'</td><td>'+e(o[k+'L'])+'</td><td>'+e(o[k+'C'])+'</td><td>'+e(o[k+'A'])+'</td></tr>');
+ h+=r1('Competence Continuity and Strategy',o.cont)+'</table>';
+ h+='<p style="font-size:9pt;color:#555">Prepared with ZM Planner.'+(DESIGNER?' Designed by '+e(DESIGNER)+'.':'')+(PARTNER?' In partnership with '+e(PARTNER)+'.':'')+'</p>';
+ return h;
+}
+function genBody(o,s){
+ return '<table><tr><th colspan="2">'+esc(o[s.k]||s.n)+'</th></tr>'+s.f.filter(f=>f[2]!=='h'&&o[f[0]]).map(f=>'<tr><td><b>'+esc(f[1])+'</b></td><td>'+esc(o[f[0]]).replace(/\n/g,'<br>')+'</td></tr>').join('')+'</table>';
+}
+function planHTML(o){
+ return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Lesson plan</title><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:36pt}div.WordSection1{page:WordSection1}body{font-family:Calibri,Arial,sans-serif;font-size:11pt}table{border-collapse:collapse;width:100%;margin-bottom:12pt}td,th{border:1px solid #444;padding:5px;vertical-align:top;text-align:left}th{background:#d9ead3}h3{margin:6pt 0}</style></head><body><div class="WordSection1">'+planBody(o)+'</div></body></html>';
+}
+function printArea(h){
+ $('#pa').innerHTML=h;
+ window.onafterprint=()=>{$('#pa').innerHTML=''};
+ toast('In the print screen, choose Save as PDF.',4000);
+ setTimeout(()=>{try{window.print()}catch(e){toast('Printing is not available here. Open the app in Chrome.',8000)}},400);
+}
+function exportPlan(o,mode){
+ if(mode==='pdf'){printArea(planBody(o));return}
+ const name=((o.topic||'lesson-plan').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'')||'lesson-plan')+'.doc';
+ try{
+  const blob=new Blob(['\ufeff',planHTML(o)],{type:'application/msword'});
+  if(downloadBlob(blob,name))toast('Word file created. Look in your Downloads folder.',6000);
+ }catch(e){toast('Could not create the file: '+(e&&e.message||e),8000)}
+}
+
+function toast(m,ms){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.display='none'},ms||4000)}
+function ask(m,yes){const o=document.createElement('div');o.id='dlg';o.innerHTML='<div><p>'+esc(m)+'</p><div class="row"><button class="pri" id="yy">Yes</button><button id="nn">Cancel</button></div></div>';document.body.appendChild(o);document.getElementById('nn').onclick=()=>o.remove();document.getElementById('yy').onclick=()=>{o.remove();yes()}}
+function showText(t){const o=document.createElement('div');o.id='dlg';o.innerHTML='<div><p>Press and hold the text, choose Select all, then Copy.</p><textarea rows="8" readonly>'+esc(t)+'</textarea><div class="row"><button id="nn">Close</button></div></div>';document.body.appendChild(o);document.getElementById('nn').onclick=()=>o.remove()}
+window.addEventListener('unhandledrejection',e=>toast('Something went wrong: '+((e.reason&&e.reason.message)||e.reason),8000));
+if(/; wv\)|FBAN|FBAV|Instagram|MicroMessenger/.test(navigator.userAgent)){const b=document.createElement('div');b.className='banner';b.textContent='You are in an in-app browser. Downloads, file upload and printing may not work here. Open this page in Chrome (menu, then Open in Chrome).';document.body.insertBefore(b,document.querySelector('main'))}
+
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const getC=()=>D.classes.find(c=>c.id===K.cid);
+const names=(t,g)=>t.split('\n').map(x=>x.trim()).filter(Boolean).map(n=>({id:uid(),n,s:g}));
+const bk=()=>{$('#b').onclick=()=>{K.sec='menu';render()}};
+const GN={M:'Boys',F:'Girls','':'Not set'};
+const groups=c=>['M','F',''].map(g=>[GN[g],c.L.filter(l=>(l.s||'')===g)]).filter(x=>x[1].length);
+const cnt=c=>{const b=c.L.filter(l=>l.s==='M').length,g=c.L.filter(l=>l.s==='F').length,u=c.L.length-b-g;return b+' boys, '+g+' girls'+(u?', '+u+' not set':'')};
+function clsView(){
+ const c=getC();
+ if(!c){K.cid=null;return clsHome()}
+ ({menu:clsMenu,L:learnersV,M:marksV,ME:markEdit,A:attV,C:covV}[K.sec]||clsMenu)(c);
+}
+function clsHome(){
+ $('#app').innerHTML='<h2>My classes</h2>'+(D.classes.length?D.classes.map(c=>'<div class="card" data-id="'+c.id+'"><b>'+esc(c.name)+'</b><small>'+esc(c.g)+', '+cnt(c)+'</small></div>').join(''):'<p class="empty">Add your class to record marks, attendance and syllabus coverage.</p>')+
+ '<h3>Add a class</h3><label>Class name<input id="cn" placeholder="For example, Form 1 Blue"></label><label>Grade / Form<select id="cg">'+opts(Object.keys(TOP),'Form 1 (Grade 7)')+'</select></label><label>Boys (one name per line)<textarea id="cb" class="lined" rows="5"></textarea></label><label>Girls (one name per line)<textarea id="cgl" class="lined" rows="5"></textarea></label><button class="pri" id="ca">Save class</button>';
+ document.querySelectorAll('.card').forEach(x=>x.onclick=()=>{K.cid=x.dataset.id;K.sec='menu';render()});
+ $('#ca').onclick=()=>{const n=$('#cn').value.trim();if(!n){toast('Type the class name first.');return}
+  const c={id:uid(),name:n,g:$('#cg').value,L:names($('#cb').value,'M').concat(names($('#cgl').value,'F'))};D.classes.push(c);save();K.cid=c.id;K.sec='menu';toast('Class saved.');render()};
+}
+function clsMenu(c){
+ $('#app').innerHTML='<button class="link" id="b">All classes</button><h2>'+esc(c.name)+'</h2><p>'+esc(c.g)+', '+cnt(c)+'</p><div class="grid"><button data-s="M">Marks</button><button data-s="A">Attendance</button><button data-s="C">Syllabus coverage</button><button data-s="L">Class register</button></div>';
+ $('#b').onclick=()=>{K.cid=null;render()};
+ document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{K.sec=b.dataset.s;render()});
+}
+function learnersV(c){
+ const sel=l=>'<select data-g="'+l.id+'"><option value="M"'+(l.s==='M'?' selected':'')+'>Boy</option><option value="F"'+(l.s==='F'?' selected':'')+'>Girl</option><option value=""'+(!l.s?' selected':'')+'>Not set</option></select>';
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Class register</h2><p>'+cnt(c)+'</p>'+
+ groups(c).map(([t,L])=>'<h3>'+t+' ('+L.length+')</h3><div class="reg">'+L.map((l,i)=>'<div><span class="rn">'+(i+1)+'.</span><span class="nm">'+esc(l.n)+'</span><span>'+sel(l)+' <button class="del" data-r="'+l.id+'">Remove</button></span></div>').join('')+'</div>').join('')+
+ '<h3>Add learners</h3><label>Boys (one name per line)<textarea id="nb" class="lined" rows="4"></textarea></label><label>Girls (one name per line)<textarea id="ng" class="lined" rows="4"></textarea></label><div class="row"><button class="pri" id="ad">Add to register</button><button class="del" id="dc">Delete class</button></div>';
+ bk();
+ document.querySelectorAll('[data-g]').forEach(e=>e.onchange=()=>{const l=c.L.find(x=>x.id===e.dataset.g);l.s=e.value;save();render()});
+ document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>ask('Remove this learner from the register?',()=>{c.L=c.L.filter(l=>l.id!==b.dataset.r);save();render()}));
+ $('#ad').onclick=()=>{c.L=c.L.concat(names($('#nb').value,'M'),names($('#ng').value,'F'));save();render()};
+ $('#dc').onclick=()=>ask('Delete this whole class with its marks, attendance and coverage? This cannot be undone.',()=>{D.classes=D.classes.filter(x=>x.id!==c.id);D.marks=D.marks.filter(m=>m.cid!==c.id);delete D.att[c.id];Object.keys(D.cov).forEach(k=>{if(k.indexOf(c.id+'|')===0)delete D.cov[k]});save();K.cid=null;render()});
+}
+function stats(m,c){
+ const t=+m.total||0,v=c.L.map(l=>({n:l.n,g:l.s,s:m.scores[l.id]})).filter(x=>x.s!==''&&x.s!=null&&!isNaN(x.s));
+ if(!v.length||!t)return null;
+ const p=v.map(x=>({n:x.n,g:x.g,p:Math.round(+x.s/t*100)})),pass=+m.pass||50,low=p.filter(x=>x.p<pass).sort((a,b)=>a.p-b.p),sr=p.slice().sort((a,b)=>b.p-a.p);
+ const ga=g=>{const a=p.filter(x=>x.g===g);return a.length?Math.round(a.reduce((q,x)=>q+x.p,0)/a.length):null};
+ return{n:p.length,avg:Math.round(p.reduce((a,x)=>a+x.p,0)/p.length),rate:pct(p.length-low.length,p.length),hi:sr[0],lo:sr[sr.length-1],low,pass,b:ga('M'),g:ga('F')};
+}
+function marksV(c){
+ const ms=D.marks.filter(m=>m.cid===c.id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')),tp={};
+ ms.forEach(m=>{const s=stats(m,c);if(s&&m.topic)(tp[m.topic]=tp[m.topic]||[]).push(s.avg)});
+ const wk=Object.keys(tp).map(t=>[t,Math.round(tp[t].reduce((x,y)=>x+y,0)/tp[t].length)]).sort((a,b)=>a[1]-b[1]).slice(0,3);
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Marks</h2><button class="pri" id="nm">New assessment</button>'+
+ (wk.length?'<h3>Weakest topics</h3>'+wk.map(w=>'<div class="card"><b>'+esc(w[0])+'</b><small>Class average '+w[1]+'%</small></div>').join(''):'')+
+ '<h3>Assessments</h3>'+(ms.length?ms.map(m=>{const s=stats(m,c);return '<div class="card" data-id="'+m.id+'"><b>'+esc(m.title)+'</b><small>'+esc([m.date,m.topic,s?'Average '+s.avg+'%, pass rate '+s.rate+'%':'No marks yet'].filter(Boolean).join(', '))+'</small></div>'}).join(''):'<p class="empty">No assessments yet.</p>');
+ bk();$('#nm').onclick=()=>{K.mid='new';K.sec='ME';render()};
+ document.querySelectorAll('.card[data-id]').forEach(x=>x.onclick=()=>{K.mid=x.dataset.id;K.sec='ME';render()});
+}
+function markEdit(c){
+ const isNew=K.mid==='new',m=isNew?{id:uid(),cid:c.id,title:'',subject:'',topic:'',total:'',pass:50,date:today(),scores:{}}:D.marks.find(x=>x.id===K.mid);
+ if(!m){K.sec='M';return render()}
+ const all=[].concat.apply([],Object.keys(TOP[c.g]||{}).map(sb=>topics(c.g,sb)));
+ $('#app').innerHTML='<button class="link" id="b">Back to marks</button><h2>'+(isNew?'New':'Edit')+' assessment</h2>'+
+ '<label>Title<input id="mt" placeholder="For example, End of topic test" value="'+esc(m.title)+'"></label><label>Subject<input id="ms" list="sl" value="'+esc(m.subject)+'"></label><datalist id="sl">'+Object.keys(TOP[c.g]||{}).map(x=>'<option>'+esc(x)+'</option>').join('')+'</datalist>'+
+ '<label>Topic<input id="mp" list="tl" value="'+esc(m.topic)+'"></label><datalist id="tl">'+all.map(x=>'<option>'+esc(x)+'</option>').join('')+'</datalist>'+
+ '<label>Total marks<input id="mo" type="number" inputmode="decimal" value="'+esc(m.total)+'"></label><label>Pass mark (percent)<input id="mq" type="number" inputmode="decimal" value="'+esc(m.pass)+'"></label><label>Date<input id="md" type="date" value="'+esc(m.date)+'"></label>'+
+ '<h2>Scores</h2>'+groups(c).map(([t,L])=>'<h3>'+t+' ('+L.length+')</h3><div class="reg">'+L.map((l,i)=>'<div><span class="rn">'+(i+1)+'.</span><span class="nm">'+esc(l.n)+'</span><input type="number" inputmode="decimal" data-l="'+l.id+'" value="'+esc(m.scores[l.id]==null?'':m.scores[l.id])+'"></div>').join('')+'</div>').join('')+
+ '<h3>Analysis</h3><div id="an"></div><div class="row"><button class="pri" id="sv">Save</button>'+(isNew?'':'<button class="del" id="dl">Delete</button>')+'</div>';
+ const rd=()=>{const o=Object.assign({},m,{title:$('#mt').value.trim(),subject:$('#ms').value.trim(),topic:$('#mp').value.trim(),total:$('#mo').value,pass:$('#mq').value,date:$('#md').value,scores:{}});document.querySelectorAll('[data-l]').forEach(e=>{if(e.value!=='')o.scores[e.dataset.l]=e.value});return o};
+ const an=()=>{const s=stats(rd(),c);$('#an').innerHTML=s?'<div class="card"><b>Class average: '+s.avg+'%</b><small>Pass rate '+s.rate+'% ('+s.n+' learners marked). Highest: '+esc(s.hi.n)+' '+s.hi.p+'%. Lowest: '+esc(s.lo.n)+' '+s.lo.p+'%.'+(s.b!=null&&s.g!=null?' Boys average '+s.b+'%, girls average '+s.g+'%.':'')+'</small></div>'+(s.low.length?'<div class="card"><b>Below '+s.pass+'%: needs support</b><small>'+s.low.map(x=>esc(x.n)+' '+x.p+'%').join(', ')+'</small></div>':''):'<p class="empty">Enter the total marks and some scores to see the analysis.</p>'};
+ document.querySelectorAll('#app input').forEach(e=>e.oninput=an);an();
+ $('#b').onclick=()=>{K.sec='M';render()};
+ $('#sv').onclick=()=>{const o=rd();
+  if(!o.title){toast('Type a title first.');return}
+  if(!(+o.total>0)){toast('Enter the total marks first.');return}
+  if(Object.values(o.scores).some(v=>+v>+o.total||+v<0)){toast('A score is higher than the total marks, or below zero. Please check.');return}
+  if(isNew)D.marks.push(o);else D.marks[D.marks.findIndex(x=>x.id===m.id)]=o;
+  save();toast('Saved.');K.sec='M';render()};
+ if(!isNew)$('#dl').onclick=()=>ask('Delete this assessment and its scores?',()=>{D.marks=D.marks.filter(x=>x.id!==m.id);save();K.sec='M';render()});
+}
+function attV(c){
+ D.att[c.id]=D.att[c.id]||{};const A=D.att[c.id];
+ let dt=today(),ab=new Set(A[dt]||[]);
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Attendance</h2><label>Date<input id="dt" type="date" value="'+dt+'"></label><p>Tick the box if a learner is absent.</p><div id="list"></div><div class="row"><button class="pri" id="sv">Save attendance</button></div><div id="sm"></div>';
+ const sum=()=>{const days=Object.keys(A);if(!days.length){$('#sm').innerHTML='';return}
+  const r=c.L.map(l=>{const a=days.filter(d=>A[d].indexOf(l.id)>-1).length;return{n:l.n,g:l.s==='M'?'Boy':l.s==='F'?'Girl':'',p:pct(days.length-a,days.length),a}}).sort((x,y)=>x.p-y.p);
+  $('#sm').innerHTML='<h3>Summary ('+days.length+' days recorded)</h3><div class="reg">'+r.map(x=>'<div><span class="nm">'+esc(x.n)+(x.g?' ('+x.g+')':'')+'</span><span>'+x.p+'% present'+(x.p<80?' - follow up':'')+'</span></div>').join('')+'</div>'};
+ const drawSummary=()=>{
+  const bA=c.L.filter(l=>l.s==='M'&&ab.has(l.id)).length,gA=c.L.filter(l=>l.s==='F'&&ab.has(l.id)).length;
+  let el=document.getElementById('absent-summary');
+  if(el) el.innerHTML='<p><b>Absent today: '+ab.size+'</b> (boys '+bA+', girls '+gA+')</p>';
+ };
+ const draw=()=>{
+  $('#list').innerHTML=(groups(c).map(([t,L])=>'<h3>'+t+' ('+L.length+')</h3><div class="reg">'+L.map((l,i)=>'<div><span class="rn">'+(i+1)+'.</span><span class="nm">'+esc(l.n)+'</span><label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--red);cursor:pointer;margin:0;"><input type="checkbox" data-a="'+l.id+'" style="width:20px;height:20px;margin:0;" '+(ab.has(l.id)?'checked':'')+'> Absent</label></div>').join('')+'</div>').join('')||'<p class="empty">Add learners first.</p>')+'<div id="absent-summary"></div>';
+  drawSummary();
+  document.querySelectorAll('[data-a]').forEach(cb=>cb.onchange=()=>{
+      const i=cb.dataset.a;
+      cb.checked?ab.add(i):ab.delete(i);
+      drawSummary();
+  })};
+ $('#dt').onchange=e=>{dt=e.target.value;ab=new Set(A[dt]||[]);draw()};
+ $('#sv').onclick=()=>{if(!dt){toast('Choose a date first.');return}A[dt]=Array.from(ab);save();sum();toast('Saved for '+dt+'. Absent: '+ab.size)};
+ bk();draw();sum();
+}
+function covV(c){
+ const subs=Object.keys(TOP[c.g]||{});let sb=K.sb&&subs.indexOf(K.sb)>-1?K.sb:subs[0];
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Syllabus coverage</h2><label>Subject<select id="cs">'+opts(subs,sb)+'</select></label><div id="cv"></div><p class="empty">Topics come from the starter lists. Add your own on the Daniel tab with Save my topic.</p>';
+ const draw=()=>{const key=c.id+'|'+sb,done=new Set(D.cov[key]||[]),tp=topics(c.g,sb),n=tp.filter(t=>done.has(t)).length;
+  $('#cv').innerHTML='<p><b>'+n+' of '+tp.length+' topics covered ('+pct(n,tp.length)+'%)</b></p><div class="bar2"><i style="width:'+pct(n,tp.length)+'%"></i></div>'+tp.map(t=>'<label style="display:flex;gap:10px;align-items:center;color:var(--tx)"><input type="checkbox" style="width:auto" data-tp="'+esc(t)+'"'+(done.has(t)?' checked':'')+'>'+esc(t)+'</label>').join('');
+  document.querySelectorAll('[data-tp]').forEach(x=>x.onchange=()=>{x.checked?done.add(x.dataset.tp):done.delete(x.dataset.tp);D.cov[key]=Array.from(done);save();draw()})};
+ $('#cs').onchange=e=>{sb=e.target.value;K.sb=sb;draw()};
+ bk();draw();
+}
+function more(){
+ $('#app').innerHTML='<h2>More</h2><div class="grid"><button id="mn">Notes</button><button id="mb">Backup and restore</button></div><div id="bx"></div><p class="empty">Tip: for downloads, printing and adding files, open this app in Chrome.</p>';
+ $('#mn').onclick=()=>{tab='notes';cur=null;q='';render()};
+ $('#mb').onclick=backup;
+}
+function backup(){
+ $('#bx').innerHTML='<h3>Backup and restore</h3><p>A backup holds your lesson plans, schemes, notes, classes, marks, attendance and coverage. Library files are not included. Keep the file somewhere safe, for example by sending it to yourself on WhatsApp.</p><div class="row"><button class="pri" id="bkb">Download backup</button></div><label>Restore from a backup file<input id="rf" type="file"></label>';
+ $('#bkb').onclick=()=>{try{const B=Object.assign({},D);delete B.lib;const blob=new Blob([JSON.stringify(B)],{type:'application/json'});if(downloadBlob(blob,'zm-planner-backup-'+today()+'.json'))toast('Backup file created. Look in your Downloads folder.',6000)}catch(e){toast('Could not create the backup: '+(e&&e.message||e),8000)}};
+ $('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  let o;try{o=JSON.parse(await f.text());if(!o||!Array.isArray(o.plans))throw 0}catch(x){toast('That file is not a ZM Planner backup.');return}
+  ask('Restoring replaces everything now in the app (except Library files) with this backup. Continue?',()=>{D=Object.assign({plans:[],scheme:[],notes:[],ct:[],classes:[],marks:[],att:{},cov:{},pre:{}},o,{lib:D.lib});save();toast('Backup restored.');tab='plans';cur=null;render()})};
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;cur=null;q='';render()});
+render();
+
+// Force clear any old Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for(let registration of registrations) {
+      registration.unregister();
+    } 
+  }).catch(function(e){});
+}
+</script></body></html>
