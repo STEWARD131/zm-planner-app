@@ -29,20 +29,39 @@ label input,label textarea,label select{margin-top:4px;font:16px Georgia,serif;c
 .empty{color:var(--mut);text-align:center;padding:30px 10px}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;border:0;border-radius:0;background:none;padding:14px 4px;color:var(--mut);font-weight:600;font-size:13px}
+nav button{flex:1;border:0;border-radius:0;background:none;padding:14px 1px;color:var(--mut);font-weight:600;font-size:12px}
 nav button.on{color:var(--pri);box-shadow:inset 0 3px 0 var(--acc)}
 h3{margin:24px 0 4px;color:var(--pri);font:700 17px system-ui,sans-serif;border-bottom:2px solid var(--acc);padding-bottom:4px}
-@media print{header,nav,.row,.bar,.link{display:none}body{background:#fff;color:#000}textarea,input{border:0;resize:none}}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid button{padding:22px 8px;font-weight:600}.bar2{height:10px;background:var(--bd);border-radius:6px;overflow:hidden;margin:6px 0 12px}.bar2 i{display:block;height:100%;background:var(--pri)}
+#toast{position:fixed;left:12px;right:12px;bottom:62px;background:var(--pri);color:var(--on);padding:12px 14px;border-radius:8px;z-index:50;display:none;font:15px/1.4 system-ui,sans-serif}
+#dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+#dlg>div{background:var(--card);color:var(--tx);padding:18px;border-radius:12px;max-width:420px;width:100%}
+.banner{background:#fff3cd;color:#5c4400;padding:10px 14px;font:14px/1.4 system-ui,sans-serif}
+.reg{border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:var(--card)}
+.reg>div{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd);min-height:44px}
+.reg>div:last-child{border-bottom:0}
+.reg>div:nth-child(even){background:rgba(127,127,127,.08)}
+.reg .rn{flex:0 0 26px;color:var(--mut);font:600 13px system-ui,sans-serif;text-align:right}
+.reg .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reg select{width:auto;padding:6px}
+.reg input[type=number]{width:90px;text-align:right}
+.reg button{padding:6px 10px}
+textarea.lined{min-height:150px;line-height:26px;padding:2px 10px;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 25px,var(--bd) 25px,var(--bd) 26px);background-attachment:local}
+#pa{display:none}
+@page{size:A4 landscape;margin:1.5cm}
+@media print{header,nav,main,.banner,#toast,#dlg{display:none!important}#pa{display:block}body{background:#fff;color:#000;padding:0}#pa table{border-collapse:collapse;width:100%;margin-bottom:12px;font:12px/1.35 Arial,sans-serif}#pa td,#pa th{border:1px solid #444;padding:5px;vertical-align:top;text-align:left;color:#000}#pa th{background:#d9ead3}}
 </style></head><body>
 <header>ZM Planner<small>Offline lesson planning for Zambian teachers</small><small id="dsg"></small><small id="pn"></small></header>
 <main id="app"></main>
 <nav>
 <button data-t="plans">Plans</button>
 <button data-t="scheme">Schemes</button>
+<button data-t="class">Class</button>
 <button data-t="lib">Library</button>
 <button data-t="daniel">Daniel</button>
-<button data-t="notes">Notes</button>
+<button data-t="more">More</button>
 </nav>
+<div id="pa"></div>
 <script>
 const ST=[['eng','Engagement (Introduction)'],['exp','Exploration (Development)'],['xpl','Explanation (Conceptualization)'],['syn','Synthesis (Continuity and Extension)'],['evl','Evaluation and reflection (Conclusion)']];
 const planF=[['h0','Preliminary information','h'],['school','School'],['teacher','Teacher'],['subject','Subject'],['cls','Level or class'],['concept','Concept'],['subc','Sub-concepts'],['topic','Topic'],['subtopic','Subtopic'],['dur','Lesson duration in minutes','number'],['time','Time (for example, 10:10 to 11:50)'],['date','Date','date'],['goal','Lesson goal','area'],['competences','Competences','area'],['target','Expected target competence','area'],['c1','Lesson competency 1 (knowledge based)','area'],['c2','Lesson competency 2 (cognitive based)','area'],['c3','Lesson competency 3 (skill based)','area'],['method','Lesson methodology and strategies','area'],['af','Formative assessment strategies','area'],['as','Summative assessment strategies','area'],['mat','Learning materials','area'],['env','Learning environment (natural, artificial, technological)','area'],['prior','Prior knowledge','area'],['inter','Interdisciplinary connections','area'],['h1','Lesson progression','h']];
@@ -53,19 +72,21 @@ plans:{t:'Lesson plans',n:'lesson plan',k:'topic',m:'subject',f:planF},
 scheme:{t:'Schemes of work',n:'scheme of work',k:'topic',m:'week',f:[['school','School'],['teacher','Teacher'],['cls','Class'],['subject','Subject'],['term','Term'],['week','Week (for example, Week 1)'],['topic','Topic'],['outcome','Specific outcomes','area'],['act','Activities','area'],['mat','Materials','area'],['assess','Assessment','area'],['rem','Remarks','area']]},
 notes:{t:'Notes',n:'note',k:'title',m:'',f:[['title','Title'],['body','Note','area']]}
 };
-let D={plans:[],scheme:[],notes:[],lib:[],ct:[],pre:{}},tab='plans',cur=null,q='';
+let D={plans:[],scheme:[],notes:[],lib:[],ct:[],classes:[],marks:[],att:{},cov:{},pre:{}},tab='plans',cur=null,q='';
 try{D=Object.assign(D,JSON.parse(localStorage.getItem('zmp')||'{}'))}catch(e){}
-const save=()=>{try{localStorage.setItem('zmp',JSON.stringify(D))}catch(e){alert('Could not save on this phone. Free some storage and try again.')}};
+const save=()=>{try{localStorage.setItem('zmp',JSON.stringify(D))}catch(e){toast('Could not save on this phone. Free some storage and try again.')}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function render(){
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+ if(tab==='more')return more();
+ if(tab==='class')return clsView();
  if(tab==='daniel')return daniel();
  if(tab==='lib')return cur===null?lib():libForm();
  cur===null?list():form();
 }
 function items(){
- const s=S[tab],a=D[tab].filter(r=>JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
+ const s=S[tab],a=D[tab].filter(r=>JSON.stringify(r).toLowerCase().indexOf(q.toLowerCase())>-1);
  $('#items').innerHTML=a.length?a.map(r=>'<div class="card" data-id="'+r.id+'"><b>'+esc(r[s.k]||'Untitled')+'</b><small>'+esc((s.m&&r[s.m])||r.cls||'')+'</small></div>').join(''):'<p class="empty">Nothing saved yet. Tap New to add a '+s.n+'.</p>';
  document.querySelectorAll('.card').forEach(c=>c.onclick=()=>{cur=c.dataset.id;render()});
 }
@@ -91,21 +112,77 @@ function form(){
  };
  $('#sh').onclick=async()=>{
   const o=get(),txt=s.f.map(([k,l,t])=>t==='h'?'== '+l+' ==':(o[k]?l+':\n'+o[k]:'')).filter(Boolean).join('\n\n');
-  try{if(navigator.share){await navigator.share({title:o[s.k]||s.n,text:txt})}else{await navigator.clipboard.writeText(txt);alert('Copied. Paste it into WhatsApp or a document.')}}catch(e){}
+  await shareText(o[s.k]||s.n, txt);
  };
- $('#pr').onclick=()=>window.print();
+ $('#pr').onclick=()=>printArea(tab==='plans'?planBody(get()):genBody(get(),s));
  if(tab==='plans'){$('#dw').onclick=()=>exportPlan(get(),'doc');$('#pd').onclick=()=>exportPlan(get(),'pdf')}
- if(tab==='plans')$('#dn').onclick=()=>{const o=get();if(!o.topic){alert('Type the topic first, then tap Draft with Daniel.');return}const d=draft(o);let n=0;Object.keys(d).forEach(k=>{const e=document.querySelector('[data-k="'+k+'"]');if(e&&!e.value.trim()){e.value=d[k];n++}});alert(n?'Daniel filled '+n+' empty sections. Read them and change anything that does not fit your class.':'All sections already have text, so Daniel left them as they are.')};
- if(!isNew)$('#dl').onclick=()=>{if(confirm('Delete this '+s.n+'? This cannot be undone.')){D[tab]=D[tab].filter(x=>x.id!==cur);save();cur=null;render()}};
+ if(tab==='plans')$('#dn').onclick=()=>{
+  const o=get();
+  if(!o.topic){toast('Type the topic first, then tap Draft with Daniel.');return}
+  let d;
+  try{ d=draft(o) }catch(e){ toast('Daniel could not draft this plan: '+(e&&e.message||e),8000); return }
+  let n=0,first=null;
+  Object.keys(d).forEach(k=>{const e=document.querySelector('[data-k="'+k+'"]');if(e&&!e.value.trim()){e.value=d[k];n++;if(!first)first=e}});
+  if(n){toast('Daniel filled '+n+' empty sections. Read them and change anything that does not fit your class.');try{first.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}}
+  else toast('All sections already have text, so Daniel left them as they are.');
+ };
+ if(!isNew)$('#dl').onclick=()=>ask('Delete this '+s.n+'? This cannot be undone.',()=>{D[tab]=D[tab].filter(x=>x.id!==cur);save();cur=null;render();toast('Deleted.')});
  scrollTo(0,0);
 }
 
-const idb=()=>new Promise((ok,no)=>{const r=indexedDB.open('zmp-files',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)});
-const fdo=async(m,fn)=>{const db=await idb();return new Promise((ok,no)=>{const t=db.transaction('f',m),rq=fn(t.objectStore('f'));t.oncomplete=()=>ok(rq.result);t.onerror=()=>no(t.error);t.onabort=()=>no(t.error)})};
+/* ---------- small cross-browser helpers ---------- */
+function downloadBlob(blob,filename){
+ const a=document.createElement('a');
+ let u;
+ try{u=URL.createObjectURL(blob)}catch(e){toast('Could not prepare the file: '+(e&&e.message||e),8000);return false}
+ if('download' in a){
+  a.href=u;a.download=filename;a.rel='noopener';a.style.position='fixed';a.style.top='-1000px';a.style.left='-1000px';
+  document.body.appendChild(a);
+  try{a.click()}catch(e){a.remove();URL.revokeObjectURL(u);toast('Could not start the download. Open the app in Chrome.',8000);return false}
+  setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},10000);
+  return true;
+ }
+ try{window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),10000);return true}catch(e){URL.revokeObjectURL(u);toast('Downloads are not supported here. Open the app in Chrome.',8000);return false}
+}
+async function copyText(txt){
+ try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(txt);return true}}catch(e){}
+ try{
+  const ta=document.createElement('textarea');
+  ta.value=txt;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.top='-1000px';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,ta.value.length);
+  const ok=document.execCommand('copy');ta.remove();return ok;
+ }catch(e){return false}
+}
+async function shareText(title,txt){
+ try{if(navigator.share){await navigator.share({title:title,text:txt});return}}catch(e){if(e&&e.name==='AbortError')return}
+ if(await copyText(txt)){toast('Copied. Paste it into WhatsApp or a document.');return}
+ showText(txt);
+}
+
+const idb=()=>new Promise((ok,no)=>{
+ try{
+  const r=indexedDB.open('zmp-files',1);
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('f'))r.result.createObjectStore('f')};
+  r.onsuccess=()=>ok(r.result);
+  r.onerror=()=>no(r.error||new Error('IndexedDB error'));
+ }catch(e){no(e)}
+});
+const fdo=async(m,fn)=>{
+ const db=await idb();
+ return new Promise((ok,no)=>{
+  let t;
+  try{t=db.transaction('f',m)}catch(e){return no(e)}
+  let rq;
+  try{rq=fn(t.objectStore('f'))}catch(e){return no(e)}
+  t.oncomplete=()=>ok(rq?rq.result:undefined);
+  t.onerror=()=>no(t.error||new Error('IndexedDB transaction error'));
+  t.onabort=()=>no(t.error||new Error('IndexedDB transaction aborted'));
+ });
+};
 let lf={g:'',t:''};
 const mb=n=>(n/1048576).toFixed(1)+' MB';
 function litems(){
- const a=D.lib.filter(r=>(!lf.g||r.grade===lf.g)&&(!lf.t||r.type===lf.t)&&JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
+ const a=D.lib.filter(r=>(!lf.g||r.grade===lf.g)&&(!lf.t||r.type===lf.t)&&JSON.stringify(r).toLowerCase().indexOf(q.toLowerCase())>-1);
  $('#items').innerHTML=a.length?a.map(r=>'<div class="card" data-id="'+r.id+'"><b>'+esc(r.title)+'</b><small>'+esc([r.grade,r.subject,r.year,r.type].filter(Boolean).join(', '))+'</small></div>').join(''):'<p class="empty">No files yet. Tap Add to save a PDF on this phone.</p>';
  document.querySelectorAll('.card').forEach(c=>c.onclick=()=>{cur=c.dataset.id;render()});
 }
@@ -122,30 +199,30 @@ function libForm(){
  const isNew=cur==='new',r=isNew?{}:(D.lib.find(x=>x.id===cur)||{});
  if(!isNew&&!r.id){cur=null;return lib()}
  if(isNew){
-  $('#app').innerHTML='<button class="link" id="back">Back to library</button><h2>Add a PDF</h2>'+
-  '<label>PDF file<input id="file" type="file" accept="application/pdf,.pdf"></label>'+
+  $('#app').innerHTML='<button class="link" id="back">Back to library</button><h2>Add a file</h2><p>Choose a PDF, a photo of a paper, or a Word file from your phone.</p>'+
+  '<label>File<input id="file" type="file"></label><p id="fn" class="empty" style="text-align:left;padding:0"></p>'+
   '<label>Title<input id="title" placeholder="For example, Mathematics Paper 1"></label>'+
-  '<label>Type<select id="type"><option>Past paper</option><option>Book</option></select></label>'+
+  '<label>Type<select id="type"><option>Past paper</option><option>Book</option><option>Other</option></select></label>'+
   '<label>Grade<select id="grade"><option>Grade 10</option><option>Grade 12</option><option>Other</option></select></label>'+
   '<label>Subject<input id="subject"></label><label>Year<input id="year" type="number" placeholder="For example, 2023"></label>'+
   '<div class="row"><button class="pri" id="sv">Save to phone</button></div>';
-  $('#file').onchange=e=>{const f=e.target.files[0];if(f&&!$('#title').value)$('#title').value=f.name.replace(/\.pdf$/i,'')};
+  $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;$('#fn').textContent='Selected: '+f.name+' ('+mb(f.size)+')';if(!$('#title').value)$('#title').value=f.name.replace(/\.[A-Za-z0-9]{2,5}$/,'')};
   $('#sv').onclick=async()=>{
    const f=$('#file').files[0];
-   if(!f){alert('Choose a PDF file first.');return}
+   if(!f){toast('Tap the File box and choose a file first.');return}
+   if(!('indexedDB' in window)){toast('This browser cannot store files offline. Open the app in Chrome.',9000);return}
    const id=String(Date.now());
-   try{await fdo('readwrite',s=>s.put(f,id))}catch(e){alert('Could not save this file. Free some storage on your phone and try again.');return}
-   D.lib.unshift({id,title:$('#title').value.trim()||f.name,type:$('#type').value,grade:$('#grade').value,subject:$('#subject').value.trim(),year:$('#year').value.trim(),size:f.size});
+   try{await fdo('readwrite',s=>s.put(f,id))}catch(e){toast('Could not save this file: '+(e&&e.message||e)+'. Try a smaller file, or open the app in Chrome.',9000);return}
+   D.lib.unshift({id,title:$('#title').value.trim()||f.name,name:f.name,type:$('#type').value,grade:$('#grade').value,subject:$('#subject').value.trim(),year:$('#year').value.trim(),size:f.size});
    save();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
-   cur=null;render();
+   toast('Saved to this phone.');cur=null;render();
   };
  }else{
-  $('#app').innerHTML='<button class="link" id="back">Back to library</button><h2>'+esc(r.title)+'</h2><p>'+esc([r.grade,r.subject,r.year,r.type].filter(Boolean).join(', '))+'<br>'+mb(r.size||0)+'</p><div class="row"><button class="pri" id="open">Open PDF</button><button class="del" id="dl">Delete</button></div>';
-  $('#open').onclick=async()=>{
-   try{const f=await fdo('readonly',s=>s.get(r.id));if(!f){alert('This file is missing. Add it again.');return}
-   const u=URL.createObjectURL(f);window.open(u,'_blank')||(location.href=u)}catch(e){alert('Could not open this file.')}
-  };
-  $('#dl').onclick=async()=>{if(confirm('Delete this file from your phone?')){try{await fdo('readwrite',s=>s.delete(r.id))}catch(e){}D.lib=D.lib.filter(x=>x.id!==r.id);save();cur=null;render()}};
+  $('#app').innerHTML='<button class="link" id="back">Back to library</button><h2>'+esc(r.title)+'</h2><p>'+esc([r.grade,r.subject,r.year,r.type].filter(Boolean).join(', '))+'<br>'+mb(r.size||0)+'</p><div class="row"><button class="pri" id="open">Open</button><button id="dlf">Download copy</button><button class="del" id="dl">Delete</button></div>';
+  const getF=async()=>{try{const f=await fdo('readonly',s=>s.get(r.id));if(!f)toast('This file is missing. Add it again.');return f}catch(e){toast('Could not read this file: '+(e&&e.message||e),8000);return null}};
+  const go=async(save)=>{const f=await getF();if(!f)return;const u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;if(save){const n=r.name||r.title;a.download=/\.[A-Za-z0-9]{2,5}$/.test(n)?n:n+'.pdf'}else{a.target='_blank';a.rel='noopener'}a.style.position='fixed';a.style.top='-1000px';a.style.left='-1000px';document.body.appendChild(a);try{a.click()}catch(e){toast('Could not open this file. Open the app in Chrome.',8000)}setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},10000)};
+  $('#open').onclick=()=>go(false);$('#dlf').onclick=()=>go(true);
+  $('#dl').onclick=()=>ask('Delete this file from your phone?',async()=>{try{await fdo('readwrite',s=>s.delete(r.id))}catch(e){}D.lib=D.lib.filter(x=>x.id!==r.id);save();cur=null;render()});
  }
  $('#back').onclick=()=>{cur=null;render()};
  scrollTo(0,0);
@@ -201,8 +278,8 @@ function daniel(){
  $('#dg').onchange=e=>{dv.g=e.target.value;dv.s='';dv.t='';daniel()};
  $('#dsb').onchange=e=>{dv.s=e.target.value;dv.t='';daniel()};
  $('#dt').onchange=e=>{dv.t=e.target.value};
- $('#bd').onclick=()=>{const t=topic();if(!t){alert('Choose or type a topic first.');return}seed=Object.assign({cls:dv.g,subject:dv.s,topic:t},draft({topic:t,subject:dv.s}));tab='plans';cur='new';render()};
- $('#bs').onclick=()=>{const t=$('#dx').value.trim();if(!t){alert('Type your topic in the box first.');return}D.ct.push({g:dv.g,s:dv.s,t});save();dv.t=t;daniel()};
+ $('#bd').onclick=()=>{const t=topic();if(!t){toast('Choose or type a topic first.');return}seed=Object.assign({cls:dv.g,subject:dv.s,topic:t},draft({topic:t,subject:dv.s}));tab='plans';cur='new';render()};
+ $('#bs').onclick=()=>{const t=$('#dx').value.trim();if(!t){toast('Type your topic in the box first.');return}D.ct.push({g:dv.g,s:dv.s,t});save();dv.t=t;daniel()};
  $('#bp').onclick=()=>{
   const t=topic().toLowerCase(),words=t.split(/\W+/).filter(w=>w.length>3),sb=dv.s.toLowerCase();
   const hit=D.lib.filter(r=>{const h=(r.title+' '+r.subject).toLowerCase();return (sb&&h.includes(sb))||words.some(w=>h.includes(w))});
@@ -212,11 +289,10 @@ function daniel(){
  scrollTo(0,0);
 }
 
-function planHTML(o){
+function planBody(o){
  const e=x=>esc(x||'').replace(/\n/g,'<br>');
  const r1=(l,v)=>'<tr><td colspan="5"><b>'+l+':</b> '+e(v)+'</td></tr>';
- let h='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Lesson plan</title><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:36pt}div.WordSection1{page:WordSection1}@page{size:A4 landscape;margin:1.5cm}body{font-family:Calibri,Arial,sans-serif;font-size:11pt}table{border-collapse:collapse;width:100%;margin-bottom:12pt}td,th{border:1px solid #444;padding:5px;vertical-align:top;text-align:left}th{background:#d9ead3}h3{margin:6pt 0}</style></head><body><div class="WordSection1">';
- h+='<h3>Lesson plan'+(o.school?' - '+e(o.school):'')+'</h3>'+(o.teacher?'<p>Teacher: '+e(o.teacher)+'</p>':'');
+ let h='<h3>Lesson plan'+(o.school?' - '+e(o.school):'')+'</h3>'+(o.teacher?'<p>Teacher: '+e(o.teacher)+'</p>':'');
  h+='<table><tr><th colspan="5">Preliminary Information</th></tr>';
  [['Subject','subject'],['Level','cls'],['Concept','concept'],['Sub-concepts','subc'],['Topic','topic'],['Subtopic','subtopic']].forEach(a=>h+=r1(a[0],o[a[1]]));
  h+=r1('Lesson Duration',o.dur?o.dur+' minutes':'')+r1('Time',o.time)+r1('Date',o.date)+r1('Lesson Goal',o.goal)+r1('Competences',o.competences)+r1('Expected Target Competence',o.target);
@@ -225,21 +301,148 @@ function planHTML(o){
  h+='<table><tr><th colspan="5">Lesson Progression</th></tr><tr><th></th><th>Teacher Activity (acts as facilitator)</th><th>Learner Activity (creates knowledge actively, not passively)</th><th>Targeted Competency</th><th>Assessment Criteria</th></tr>';
  ST.forEach(([k,l])=>h+='<tr><td><b>'+e(l)+'</b><br>[Duration: '+e(o[k+'D'])+' min]</td><td>'+e(o[k+'T'])+'</td><td>'+e(o[k+'L'])+'</td><td>'+e(o[k+'C'])+'</td><td>'+e(o[k+'A'])+'</td></tr>');
  h+=r1('Competence Continuity and Strategy',o.cont)+'</table>';
- h+='<p style="font-size:9pt;color:#555">Prepared with ZM Planner.'+(DESIGNER?' Designed by '+e(DESIGNER)+'.':'')+(PARTNER?' In partnership with '+e(PARTNER)+'.':'')+'</p></div></body></html>';
+ h+='<p style="font-size:9pt;color:#555">Prepared with ZM Planner.'+(DESIGNER?' Designed by '+e(DESIGNER)+'.':'')+(PARTNER?' In partnership with '+e(PARTNER)+'.':'')+'</p>';
  return h;
 }
+function genBody(o,s){
+ return '<table><tr><th colspan="2">'+esc(o[s.k]||s.n)+'</th></tr>'+s.f.filter(f=>f[2]!=='h'&&o[f[0]]).map(f=>'<tr><td><b>'+esc(f[1])+'</b></td><td>'+esc(o[f[0]]).replace(/\n/g,'<br>')+'</td></tr>').join('')+'</table>';
+}
+function planHTML(o){
+ return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Lesson plan</title><style>@page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:36pt}div.WordSection1{page:WordSection1}body{font-family:Calibri,Arial,sans-serif;font-size:11pt}table{border-collapse:collapse;width:100%;margin-bottom:12pt}td,th{border:1px solid #444;padding:5px;vertical-align:top;text-align:left}th{background:#d9ead3}h3{margin:6pt 0}</style></head><body><div class="WordSection1">'+planBody(o)+'</div></body></html>';
+}
+function printArea(h){
+ $('#pa').innerHTML=h;
+ window.onafterprint=()=>{$('#pa').innerHTML=''};
+ toast('In the print screen, choose Save as PDF.',4000);
+ setTimeout(()=>{try{window.print()}catch(e){toast('Printing is not available here. Open the app in Chrome.',8000)}},400);
+}
 function exportPlan(o,mode){
- const h=planHTML(o);
- if(mode==='pdf'){
-  const w=window.open('','_blank');
-  if(!w){alert('Your browser blocked the new page. Allow pop-ups for this site and try again.');return}
-  w.document.write(h);w.document.close();w.focus();setTimeout(()=>w.print(),500);
-  return;
- }
+ if(mode==='pdf'){printArea(planBody(o));return}
  const name=((o.topic||'lesson-plan').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'')||'lesson-plan')+'.doc';
- const a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob(['\ufeff',h],{type:'application/msword'}));
- a.download=name;document.body.appendChild(a);a.click();a.remove();
+ try{
+  const blob=new Blob(['\ufeff',planHTML(o)],{type:'application/msword'});
+  if(downloadBlob(blob,name))toast('Word file created. Look in your Downloads folder.',6000);
+ }catch(e){toast('Could not create the file: '+(e&&e.message||e),8000)}
+}
+
+function toast(m,ms){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.display='none'},ms||4000)}
+function ask(m,yes){const o=document.createElement('div');o.id='dlg';o.innerHTML='<div><p>'+esc(m)+'</p><div class="row"><button class="pri" id="yy">Yes</button><button id="nn">Cancel</button></div></div>';document.body.appendChild(o);document.getElementById('nn').onclick=()=>o.remove();document.getElementById('yy').onclick=()=>{o.remove();yes()}}
+function showText(t){const o=document.createElement('div');o.id='dlg';o.innerHTML='<div><p>Press and hold the text, choose Select all, then Copy.</p><textarea rows="8" readonly>'+esc(t)+'</textarea><div class="row"><button id="nn">Close</button></div></div>';document.body.appendChild(o);document.getElementById('nn').onclick=()=>o.remove()}
+window.addEventListener('error',e=>toast('Something went wrong: '+e.message,8000));
+window.addEventListener('unhandledrejection',e=>toast('Something went wrong: '+((e.reason&&e.reason.message)||e.reason),8000));
+if(/; wv\)|FBAN|FBAV|Instagram|MicroMessenger/.test(navigator.userAgent)){const b=document.createElement('div');b.className='banner';b.textContent='You are in an in-app browser. Downloads, file upload and printing may not work here. Open this page in Chrome (menu, then Open in Chrome).';document.body.insertBefore(b,document.querySelector('main'))}
+let K={cid:null,sec:'menu',mid:null,sb:null};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const getC=()=>D.classes.find(c=>c.id===K.cid);
+const names=(t,g)=>t.split('\n').map(x=>x.trim()).filter(Boolean).map(n=>({id:uid(),n,s:g}));
+const bk=()=>{$('#b').onclick=()=>{K.sec='menu';render()}};
+const GN={M:'Boys',F:'Girls','':'Not set'};
+const groups=c=>['M','F',''].map(g=>[GN[g],c.L.filter(l=>(l.s||'')===g)]).filter(x=>x[1].length);
+const cnt=c=>{const b=c.L.filter(l=>l.s==='M').length,g=c.L.filter(l=>l.s==='F').length,u=c.L.length-b-g;return b+' boys, '+g+' girls'+(u?', '+u+' not set':'')};
+function clsView(){
+ const c=getC();
+ if(!c){K.cid=null;return clsHome()}
+ ({menu:clsMenu,L:learnersV,M:marksV,ME:markEdit,A:attV,C:covV}[K.sec]||clsMenu)(c);
+}
+function clsHome(){
+ $('#app').innerHTML='<h2>My classes</h2>'+(D.classes.length?D.classes.map(c=>'<div class="card" data-id="'+c.id+'"><b>'+esc(c.name)+'</b><small>'+esc(c.g)+', '+cnt(c)+'</small></div>').join(''):'<p class="empty">Add your class to record marks, attendance and syllabus coverage.</p>')+
+ '<h3>Add a class</h3><label>Class name<input id="cn" placeholder="For example, Grade 6 Blue"></label><label>Grade<select id="cg">'+opts(Object.keys(TOP),'Grade 6')+'</select></label><label>Boys (one name per line)<textarea id="cb" class="lined" rows="5"></textarea></label><label>Girls (one name per line)<textarea id="cgl" class="lined" rows="5"></textarea></label><button class="pri" id="ca">Save class</button>';
+ document.querySelectorAll('.card').forEach(x=>x.onclick=()=>{K.cid=x.dataset.id;K.sec='menu';render()});
+ $('#ca').onclick=()=>{const n=$('#cn').value.trim();if(!n){toast('Type the class name first.');return}
+  const c={id:uid(),name:n,g:$('#cg').value,L:names($('#cb').value,'M').concat(names($('#cgl').value,'F'))};D.classes.push(c);save();K.cid=c.id;K.sec='menu';toast('Class saved.');render()};
+}
+function clsMenu(c){
+ $('#app').innerHTML='<button class="link" id="b">All classes</button><h2>'+esc(c.name)+'</h2><p>'+esc(c.g)+', '+cnt(c)+'</p><div class="grid"><button data-s="M">Marks</button><button data-s="A">Attendance</button><button data-s="C">Syllabus coverage</button><button data-s="L">Class register</button></div>';
+ $('#b').onclick=()=>{K.cid=null;render()};
+ document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{K.sec=b.dataset.s;render()});
+}
+function learnersV(c){
+ const sel=l=>'<select data-g="'+l.id+'"><option value="M"'+(l.s==='M'?' selected':'')+'>Boy</option><option value="F"'+(l.s==='F'?' selected':'')+'>Girl</option><option value=""'+(!l.s?' selected':'')+'>Not set</option></select>';
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Class register</h2><p>'+cnt(c)+'</p>'+
+ groups(c).map(([t,L])=>'<h3>'+t+' ('+L.length+')</h3><div class="reg">'+L.map((l,i)=>'<div><span class="rn">'+(i+1)+'.</span><span class="nm">'+esc(l.n)+'</span><span>'+sel(l)+' <button class="del" data-r="'+l.id+'">Remove</button></span></div>').join('')+'</div>').join('')+
+ '<h3>Add learners</h3><label>Boys (one name per line)<textarea id="nb" class="lined" rows="4"></textarea></label><label>Girls (one name per line)<textarea id="ng" class="lined" rows="4"></textarea></label><div class="row"><button class="pri" id="ad">Add to register</button><button class="del" id="dc">Delete class</button></div>';
+ bk();
+ document.querySelectorAll('[data-g]').forEach(e=>e.onchange=()=>{const l=c.L.find(x=>x.id===e.dataset.g);l.s=e.value;save();render()});
+ document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>ask('Remove this learner from the register?',()=>{c.L=c.L.filter(l=>l.id!==b.dataset.r);save();render()}));
+ $('#ad').onclick=()=>{c.L=c.L.concat(names($('#nb').value,'M'),names($('#ng').value,'F'));save();render()};
+ $('#dc').onclick=()=>ask('Delete this whole class with its marks, attendance and coverage? This cannot be undone.',()=>{D.classes=D.classes.filter(x=>x.id!==c.id);D.marks=D.marks.filter(m=>m.cid!==c.id);delete D.att[c.id];Object.keys(D.cov).forEach(k=>{if(k.indexOf(c.id+'|')===0)delete D.cov[k]});save();K.cid=null;render()});
+}
+function stats(m,c){
+ const t=+m.total||0,v=c.L.map(l=>({n:l.n,g:l.s,s:m.scores[l.id]})).filter(x=>x.s!==''&&x.s!=null&&!isNaN(x.s));
+ if(!v.length||!t)return null;
+ const p=v.map(x=>({n:x.n,g:x.g,p:Math.round(+x.s/t*100)})),pass=+m.pass||50,low=p.filter(x=>x.p<pass).sort((a,b)=>a.p-b.p),sr=p.slice().sort((a,b)=>b.p-a.p);
+ const ga=g=>{const a=p.filter(x=>x.g===g);return a.length?Math.round(a.reduce((q,x)=>q+x.p,0)/a.length):null};
+ return{n:p.length,avg:Math.round(p.reduce((a,x)=>a+x.p,0)/p.length),rate:pct(p.length-low.length,p.length),hi:sr[0],lo:sr[sr.length-1],low,pass,b:ga('M'),g:ga('F')};
+}
+function marksV(c){
+ const ms=D.marks.filter(m=>m.cid===c.id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')),tp={};
+ ms.forEach(m=>{const s=stats(m,c);if(s&&m.topic)(tp[m.topic]=tp[m.topic]||[]).push(s.avg)});
+ const wk=Object.keys(tp).map(t=>[t,Math.round(tp[t].reduce((x,y)=>x+y,0)/tp[t].length)]).sort((a,b)=>a[1]-b[1]).slice(0,3);
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Marks</h2><button class="pri" id="nm">New assessment</button>'+
+ (wk.length?'<h3>Weakest topics</h3>'+wk.map(w=>'<div class="card"><b>'+esc(w[0])+'</b><small>Class average '+w[1]+'%</small></div>').join(''):'')+
+ '<h3>Assessments</h3>'+(ms.length?ms.map(m=>{const s=stats(m,c);return '<div class="card" data-id="'+m.id+'"><b>'+esc(m.title)+'</b><small>'+esc([m.date,m.topic,s?'Average '+s.avg+'%, pass rate '+s.rate+'%':'No marks yet'].filter(Boolean).join(', '))+'</small></div>'}).join(''):'<p class="empty">No assessments yet.</p>');
+ bk();$('#nm').onclick=()=>{K.mid='new';K.sec='ME';render()};
+ document.querySelectorAll('.card[data-id]').forEach(x=>x.onclick=()=>{K.mid=x.dataset.id;K.sec='ME';render()});
+}
+function markEdit(c){
+ const isNew=K.mid==='new',m=isNew?{id:uid(),cid:c.id,title:'',subject:'',topic:'',total:'',pass:50,date:today(),scores:{}}:D.marks.find(x=>x.id===K.mid);
+ if(!m){K.sec='M';return render()}
+ const all=[].concat.apply([],Object.keys(TOP[c.g]||{}).map(sb=>topics(c.g,sb)));
+ $('#app').innerHTML='<button class="link" id="b">Back to marks</button><h2>'+(isNew?'New':'Edit')+' assessment</h2>'+
+ '<label>Title<input id="mt" placeholder="For example, End of topic test" value="'+esc(m.title)+'"></label><label>Subject<input id="ms" list="sl" value="'+esc(m.subject)+'"></label><datalist id="sl">'+Object.keys(TOP[c.g]||{}).map(x=>'<option>'+esc(x)+'</option>').join('')+'</datalist>'+
+ '<label>Topic<input id="mp" list="tl" value="'+esc(m.topic)+'"></label><datalist id="tl">'+all.map(x=>'<option>'+esc(x)+'</option>').join('')+'</datalist>'+
+ '<label>Total marks<input id="mo" type="number" inputmode="decimal" value="'+esc(m.total)+'"></label><label>Pass mark (percent)<input id="mq" type="number" inputmode="decimal" value="'+esc(m.pass)+'"></label><label>Date<input id="md" type="date" value="'+esc(m.date)+'"></label>'+
+ '<h2>Scores</h2>'+groups(c).map(([t,L])=>'<h3>'+t+' ('+L.length+')</h3><div class="reg">'+L.map((l,i)=>'<div><span class="rn">'+(i+1)+'.</span><span class="nm">'+esc(l.n)+'</span><input type="number" inputmode="decimal" data-l="'+l.id+'" value="'+esc(m.scores[l.id]==null?'':m.scores[l.id])+'"></div>').join('')+'</div>').join('')+
+ '<h3>Analysis</h3><div id="an"></div><div class="row"><button class="pri" id="sv">Save</button>'+(isNew?'':'<button class="del" id="dl">Delete</button>')+'</div>';
+ const rd=()=>{const o=Object.assign({},m,{title:$('#mt').value.trim(),subject:$('#ms').value.trim(),topic:$('#mp').value.trim(),total:$('#mo').value,pass:$('#mq').value,date:$('#md').value,scores:{}});document.querySelectorAll('[data-l]').forEach(e=>{if(e.value!=='')o.scores[e.dataset.l]=e.value});return o};
+ const an=()=>{const s=stats(rd(),c);$('#an').innerHTML=s?'<div class="card"><b>Class average: '+s.avg+'%</b><small>Pass rate '+s.rate+'% ('+s.n+' learners marked). Highest: '+esc(s.hi.n)+' '+s.hi.p+'%. Lowest: '+esc(s.lo.n)+' '+s.lo.p+'%.'+(s.b!=null&&s.g!=null?' Boys average '+s.b+'%, girls average '+s.g+'%.':'')+'</small></div>'+(s.low.length?'<div class="card"><b>Below '+s.pass+'%: needs support</b><small>'+s.low.map(x=>esc(x.n)+' '+x.p+'%').join(', ')+'</small></div>':''):'<p class="empty">Enter the total marks and some scores to see the analysis.</p>'};
+ document.querySelectorAll('#app input').forEach(e=>e.oninput=an);an();
+ $('#b').onclick=()=>{K.sec='M';render()};
+ $('#sv').onclick=()=>{const o=rd();
+  if(!o.title){toast('Type a title first.');return}
+  if(!(+o.total>0)){toast('Enter the total marks first.');return}
+  if(Object.values(o.scores).some(v=>+v>+o.total||+v<0)){toast('A score is higher than the total marks, or below zero. Please check.');return}
+  if(isNew)D.marks.push(o);else D.marks[D.marks.findIndex(x=>x.id===m.id)]=o;
+  save();toast('Saved.');K.sec='M';render()};
+ if(!isNew)$('#dl').onclick=()=>ask('Delete this assessment and its scores?',()=>{D.marks=D.marks.filter(x=>x.id!==m.id);save();K.sec='M';render()});
+}
+function attV(c){
+ D.att[c.id]=D.att[c.id]||{};const A=D.att[c.id];
+ let dt=today(),ab=new Set(A[dt]||[]);
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Attendance</h2><label>Date<input id="dt" type="date" value="'+dt+'"></label><p>Everyone starts as present. Tap Present to mark a learner absent.</p><div id="list"></div><div class="row"><button class="pri" id="sv">Save attendance</button></div><div id="sm"></div>';
+ const sum=()=>{const days=Object.keys(A);if(!days.length){$('#sm').innerHTML='';return}
+  const r=c.L.map(l=>{const a=days.filter(d=>A[d].indexOf(l.id)>-1).length;return{n:l.n,g:l.s==='M'?'Boy':l.s==='F'?'Girl':'',p:pct(days.length-a,days.length),a}}).sort((x,y)=>x.p-y.p);
+  $('#sm').innerHTML='<h3>Summary ('+days.length+' days recorded)</h3><div class="reg">'+r.map(x=>'<div><span class="nm">'+esc(x.n)+(x.g?' ('+x.g+')':'')+'</span><span>'+x.p+'% present'+(x.p<80?' - follow up':'')+'</span></div>').join('')+'</div>'};
+ const draw=()=>{
+  const bA=c.L.filter(l=>l.s==='M'&&ab.has(l.id)).length,gA=c.L.filter(l=>l.s==='F'&&ab.has(l.id)).length;
+  $('#list').innerHTML=(groups(c).map(([t,L])=>'<h3>'+t+' ('+L.length+')</h3><div class="reg">'+L.map((l,i)=>'<div><span class="rn">'+(i+1)+'.</span><span class="nm">'+esc(l.n)+'</span><button data-a="'+l.id+'"'+(ab.has(l.id)?' class="del"':'')+'>'+(ab.has(l.id)?'Absent':'Present')+'</button></div>').join('')+'</div>').join('')||'<p class="empty">Add learners first.</p>')+'<p><b>Absent today: '+ab.size+'</b> (boys '+bA+', girls '+gA+')</p>';
+  document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const i=b.dataset.a;ab.has(i)?ab.delete(i):ab.add(i);draw()})};
+ $('#dt').onchange=e=>{dt=e.target.value;ab=new Set(A[dt]||[]);draw()};
+ $('#sv').onclick=()=>{if(!dt){toast('Choose a date first.');return}A[dt]=Array.from(ab);save();sum();toast('Saved for '+dt+'. Absent: '+ab.size)};
+ bk();draw();sum();
+}
+function covV(c){
+ const subs=Object.keys(TOP[c.g]||{});let sb=K.sb&&subs.indexOf(K.sb)>-1?K.sb:subs[0];
+ $('#app').innerHTML='<button class="link" id="b">Back</button><h2>Syllabus coverage</h2><label>Subject<select id="cs">'+opts(subs,sb)+'</select></label><div id="cv"></div><p class="empty">Topics come from the starter lists. Add your own on the Daniel tab with Save my topic.</p>';
+ const draw=()=>{const key=c.id+'|'+sb,done=new Set(D.cov[key]||[]),tp=topics(c.g,sb),n=tp.filter(t=>done.has(t)).length;
+  $('#cv').innerHTML='<p><b>'+n+' of '+tp.length+' topics covered ('+pct(n,tp.length)+'%)</b></p><div class="bar2"><i style="width:'+pct(n,tp.length)+'%"></i></div>'+tp.map(t=>'<label style="display:flex;gap:10px;align-items:center;color:var(--tx)"><input type="checkbox" style="width:auto" data-tp="'+esc(t)+'"'+(done.has(t)?' checked':'')+'>'+esc(t)+'</label>').join('');
+  document.querySelectorAll('[data-tp]').forEach(x=>x.onchange=()=>{x.checked?done.add(x.dataset.tp):done.delete(x.dataset.tp);D.cov[key]=Array.from(done);save();draw()})};
+ $('#cs').onchange=e=>{sb=e.target.value;K.sb=sb;draw()};
+ bk();draw();
+}
+function more(){
+ $('#app').innerHTML='<h2>More</h2><div class="grid"><button id="mn">Notes</button><button id="mb">Backup and restore</button></div><div id="bx"></div><p class="empty">Tip: for downloads, printing and adding files, open this app in Chrome.</p>';
+ $('#mn').onclick=()=>{tab='notes';cur=null;q='';render()};
+ $('#mb').onclick=backup;
+}
+function backup(){
+ $('#bx').innerHTML='<h3>Backup and restore</h3><p>A backup holds your lesson plans, schemes, notes, classes, marks, attendance and coverage. Library files are not included. Keep the file somewhere safe, for example by sending it to yourself on WhatsApp.</p><div class="row"><button class="pri" id="bkb">Download backup</button></div><label>Restore from a backup file<input id="rf" type="file"></label>';
+ $('#bkb').onclick=()=>{try{const B=Object.assign({},D);delete B.lib;const blob=new Blob([JSON.stringify(B)],{type:'application/json'});if(downloadBlob(blob,'zm-planner-backup-'+today()+'.json'))toast('Backup file created. Look in your Downloads folder.',6000)}catch(e){toast('Could not create the backup: '+(e&&e.message||e),8000)}};
+ $('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  let o;try{o=JSON.parse(await f.text());if(!o||!Array.isArray(o.plans))throw 0}catch(x){toast('That file is not a ZM Planner backup.');return}
+  ask('Restoring replaces everything now in the app (except Library files) with this backup. Continue?',()=>{D=Object.assign({plans:[],scheme:[],notes:[],ct:[],classes:[],marks:[],att:{},cov:{},pre:{}},o,{lib:D.lib});save();toast('Backup restored.');tab='plans';cur=null;render()})};
 }
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;cur=null;q='';render()});
 render();
